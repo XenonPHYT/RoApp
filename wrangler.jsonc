@@ -9,7 +9,7 @@
     "run_worker_first": true,
   },
   "vars": {
-    "APP_ORIGIN": "https://REPLACE_WITH_YOUR_WORKER_HOST",
+    "APP_ORIGIN": "https://roapp.urandom268.workers.dev/",
     "SESSION_HOURS": "8",
   },
   "d1_databases": [
