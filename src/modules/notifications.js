@@ -76,5 +76,12 @@ export async function maintenance(env) {
       t - 86400,
     ),
   ]);
+  try {
+    await env.DB.prepare("DELETE FROM application_drafts WHERE expires_at<=?")
+      .bind(t)
+      .run();
+  } catch {
+    // Table missing until migrations/0001_application_drafts.sql is applied.
+  }
   return processNotifications(env);
 }

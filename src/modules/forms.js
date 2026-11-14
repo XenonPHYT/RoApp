@@ -151,10 +151,3 @@ export async function availableForms(env, guild) {
     ...JSON.parse(f.definition_json),
   }));
 }
-export const supportsModal = (d) =>
-  d.questions.length <= 5 &&
-  d.questions.every(
-    (q) =>
-      ["short_text", "long_text", "roblox_username"].includes(q.type) &&
-      q.label.length <= 45,
-  );
