@@ -1,6 +1,7 @@
 import { queueUI } from "./review-ui.js";
 import { availableForms, publishForm, closeForm } from "../modules/forms.js";
-import { myApplications, ownApplication } from "../modules/applications.js";
+import { ownApplication } from "../modules/applications.js";
+import { introData, reply, myApplicationsData } from "./apply-flow.js";
 import { authorize } from "../modules/permissions.js";
 import { publishPanel } from "../modules/panels.js";
 import { button, select } from "./responses.js";
@@ -150,26 +151,8 @@ export async function handleCommand(i, env) {
     return formChoices(env, guild, user, 0);
   }
   if (i.data.name === "myapplications") {
-    const apps = await myApplications(env, guild, user);
-    return message(
-      apps.length
-        ? "Your applications (most recent 100):"
-        : "You have no applications.",
-      {
-        embeds: [
-          embed(
-            "My applications",
-            apps
-              .slice(0, 20)
-              .map((a) => `${a.id} — ${a.status}`)
-              .join("\n") || "No applications yet.",
-          ),
-        ],
-        components: [
-          row(link("Applicant portal", env.APP_ORIGIN + `/?mine=${guild}`)),
-        ],
-      },
-    );
+    const d = await myApplicationsData(env, guild, user);
+    return message(d.content, { embeds: d.embeds, components: d.components });
   }
   if (i.data.name === "application") {
     const ref = validId(option(i, "reference"));
@@ -249,12 +232,22 @@ export async function formChoices(env, guild, user, page = 0) {
   const forms = await availableForms(env, guild);
   if (!Number.isSafeInteger(page) || page < 0 || page > 1000)
     return message("Invalid form page. Use /apply.");
+  // A single open form needs no selection step: go straight to its introduction.
+  if (forms.length === 1 && page === 0)
+    return reply(await introData(env, guild, user, forms[0].id));
   const visible = forms.slice(page * 25, page * 25 + 25),
     components = visible.length
       ? [
           select(
             `forms:${user}`,
-            visible.map((f) => ({ label: f.title.slice(0, 100), value: f.id })),
+            visible.map((f) => ({
+              label: f.title.slice(0, 100),
+              value: f.id,
+              ...(f.description
+                ? { description: f.description.slice(0, 100) }
+                : {}),
+            })),
+            "Select an application…",
           ),
         ]
       : [];
