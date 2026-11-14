@@ -1412,6 +1412,41 @@ const AUTH_ERRORS = {
   oauth_state_invalid:
     "Sign-in could not be verified (the login session was missing, expired or already used). Start sign-in again from this same browser.",
 };
+async function showSetup() {
+  state.tab = "setup";
+  mount(el("p", { class: "loading" }, "Loading…"));
+  const list = await api("/api/setup/candidates");
+  const picker = choose(
+    list.map((g) => ({ value: g.guild_id, label: g.name })),
+    list[0]?.guild_id || "",
+  );
+  mount(
+    heading(
+      "Set up a community",
+      "Register a Discord server with RoApp. Only the server owner can do this, and RoApp must already be installed in that server.",
+    ),
+    list.length
+      ? card(
+          field("Server you own", picker),
+          actions(
+            btn(
+              "Set up this community",
+              async () => {
+                await api("/api/guild/setup", "POST", {
+                  guild_id: picker.value,
+                });
+                sessionStorage.removeItem("roapp-intent");
+                location.assign("/");
+              },
+              "primary",
+            ),
+          ),
+        )
+      : empty(
+          "No unregistered servers that you own were found. Install RoApp in your server first, then come back here.",
+        ),
+  );
+}
 async function initialize() {
   const authError = new URLSearchParams(location.search).get("auth_error");
   if (authError) {
@@ -1437,6 +1472,10 @@ async function initialize() {
   );
   state.guilds = await api("/api/guilds");
   $("#sidebar").hidden = false;
+  $("#setup-open").addEventListener(
+    "click",
+    task(() => showSetup()),
+  );
   const picker = $("#community");
   for (const g of state.guilds.filter((g) => g.dashboard))
     picker.append(el("option", { value: g.guild_id }, g.name));
@@ -1474,12 +1513,11 @@ async function initialize() {
     await loadContext();
     await showTab("overview");
   } else if (!state.guilds.length) {
-    mount(
-      heading("No communities found"),
-      empty(
-        "RoApp has no registered community that includes your Discord account. The server owner must run /setup in the server after installing RoApp.",
-      ),
+    notify(
+      "No registered community includes your Discord account yet. If you own the server, set it up below; otherwise ask the owner.",
+      true,
     );
+    await showSetup();
   } else {
     notify(
       "You do not have dashboard access in any community. Ask the server owner to grant one of your roles dashboard access.",
