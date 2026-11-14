@@ -1,0 +1,842 @@
+ROAPP — MASTER DEVELOPMENT PROMPT FOR GENSPARK Version: 1.0 Project
+type: Public Discord bot + companion web dashboard Target runtime:
+Cloudflare Workers Language: JavaScript (ES Modules), with vanilla
+JavaScript for the frontend Database: Cloudflare D1 Configuration:
+wrangler.jsonc
+
+====================================================================== 1.
+YOUR ROLE AND EXECUTION RULES
+======================================================================
+
+Act as a senior JavaScript, Discord API, and Cloudflare Workers
+engineer. Build RoApp as a production-minded but lightweight
+application. Follow this specification strictly.
+
+NON-NEGOTIABLE RULES 1. Build in the exact phases listed in this prompt.
+Do not skip ahead. 2. Before writing code, inspect the project workspace
+and report what exists. Do not overwrite existing work without
+explaining the impact. 3. Do not invent credentials, Discord IDs,
+database IDs, API responses, or deployment results. 4. Use placeholders
+for secrets and IDs. Never hardcode real secrets. 5. Do not claim a
+feature works until it has been implemented and tested. 6. Keep the
+project lightweight. Do not add frameworks, libraries, services, or
+infrastructure without a concrete requirement and an explanation. 7. Use
+JavaScript ES modules. Do not convert the project to TypeScript. 8. Use
+Cloudflare Workers and one Cloudflare D1 database for the initial
+release. 9. Use wrangler.jsonc as the only Wrangler configuration file.
+Do not create wrangler.toml. 10. Use one initial SQL schema file at
+src/database/schema.sql. Do not create a migrations directory for the
+initial fresh database. 11. Use vanilla JavaScript, HTML, and CSS for
+the dashboard. Do not add React, Vue, Angular, Svelte, or a build
+framework unless explicitly approved. 12. Do not add Cloudflare R2,
+Redis, a separate API server, microservices, or a second database in the
+initial release. There are no initial file-upload requirements. 13.
+Prefer native fetch, Web Crypto, URL, Request, and Response APIs. Avoid
+discord.js initially. RoApp will use Discord HTTP interactions and REST
+calls, not a persistent Gateway connection in the initial release. 14.
+Keep code modular by feature, but do not create a separate file for
+every tiny function. 15. Use prepared/bound SQL statements. Never
+concatenate untrusted user input into SQL. 16. Every community-owned
+database record and query must be scoped to the correct Discord
+guild_id. Enforce tenant isolation on the server; never trust a guild ID
+supplied only by the browser. 17. Verify Discord interaction signatures
+using Discord’s public key and the required Ed25519 verification process
+before processing interactions. 18. Acknowledge Discord interactions
+within Discord’s response deadline. Avoid slow synchronous work in the
+interaction request. 19. Check permissions on every protected action,
+including button, select-menu, modal, and dashboard API requests. Hiding
+a control is not authorization. 20. Treat all Discord interaction
+custom_id values as untrusted input. Validate format, ownership, guild
+context, and authorization. 21. Keep applicant-facing information
+separate from internal reviewer notes. 22. Do not expose internal notes,
+reviewer discussions, private decisions, or another applicant’s data to
+unauthorized users. 23. Use UTC timestamps in storage and display
+localized times only at the presentation layer. 24. Record important
+administrative and application state changes in an audit/event history.
+25. If a requirement is ambiguous, stop and ask one concise
+clarification instead of silently making a major architectural
+assumption. 26. At the end of each phase, provide: files
+created/changed, functionality implemented, tests performed and results,
+known limitations, and the exact next step. Do not proceed to the next
+phase until the current phase passes its checks.
+
+======================================================================
+2. PRODUCT IDENTITY AND PURPOSE
+======================================================================
+
+Product name: RoApp RoApp is the actual name of the public Discord bot.
+
+RoApp is a public Discord bot for Roblox communities. It helps
+communities create, publish, receive, review, and process applications.
+
+The companion website is called the “RoApp Dashboard”. It is linked to
+the authenticated user’s Discord account. Do not describe the bot itself
+as a “shared bot” in public-facing copy. It is a public Discord bot that
+many communities can invite.
+
+Core product statement: “Create, manage, and process community
+applications through Discord and the RoApp Dashboard.”
+
+The system has three main parts: A. RoApp Discord Bot — invited to
+multiple Discord servers. B. RoApp Dashboard — website where authorized
+Discord account holders manage their communities. C. RoApp backend — one
+Cloudflare Worker and one D1 database for the initial release.
+
+One public bot serves multiple Discord servers. Each server is an
+independent tenant with isolated forms, applications, staff permissions,
+settings, panels, and audit records.
+
+======================================================================
+3. INITIAL TECHNOLOGY STACK
+======================================================================
+
+Required: - Cloudflare Workers for the backend and HTTP routes. -
+Cloudflare D1 for structured persistent data. - Discord API for slash
+commands, buttons, select menus, modals, messages, and OAuth2. - Vanilla
+JavaScript ES modules for backend and frontend. - HTML and CSS for the
+dashboard. - wrangler.jsonc for Cloudflare configuration.
+
+Not required in the initial release: - Cloudflare R2 (no upload feature
+is currently required). - Redis. - Separate API hosting. -
+Microservices. - Discord Gateway connection. - discord.js. - Frontend
+framework. - Multiple databases. - Background queue service unless later
+justified by actual delivery/retry needs.
+
+Use Cloudflare Workers static assets to serve the dashboard frontend
+from the same Worker deployment. Keep the API and dashboard on the same
+origin where practical.
+
+======================================================================
+4. REQUIRED PROJECT FOLDER STRUCTURE
+======================================================================
+
+Use this structure as the starting point. Keep it compact. You may add a
+file only when a real responsibility requires it, and explain why.
+
+roapp/ | |– src/ | |– index.js | | | |– discord/ | | |– interactions.js
+| | |– commands.js | | |– components.js | | |– responses.js | | | |–
+modules/ | | |– applications.js | | |– forms.js | | |– reviews.js | | |–
+panels.js | | |– permissions.js | | |– guilds.js | | |– roblox.js | | |–
+notifications.js | | | |– dashboard/ | | |– auth.js | | |– routes.js | |
+|– api.js | | | |– database/ | | |– db.js | | |– queries.js | | |–
+schema.sql | | | |– utils/ | |– discord.js | |– validation.js | |–
+helpers.js | |– public/ | |– index.html | |– css/ | | |– style.css | |–
+js/ | | |– app.js | |– assets/ | |– logo.png (only if the supplied logo
+asset is added) | |– scripts/ | |– register-commands.js | |–
+package.json |– wrangler.jsonc |– .gitignore |– README.md
+
+Folder responsibilities: - src/index.js: single Worker entry point and
+request routing. - src/discord/: Discord signature verification,
+interaction dispatch, command/component parsing, and Discord response
+builders. - src/modules/: application and community business logic. Keep
+database access behind database helpers where reasonable. -
+src/dashboard/: Discord OAuth2 login, sessions, server selection, and
+dashboard API routing. - src/database/: D1 helpers, reusable queries,
+and the single initial schema. - src/utils/: shared validation and small
+utilities. - public/: static dashboard. - scripts/: command registration
+utility, not a second runtime. - schema.sql: all initial database
+tables, indexes, constraints, and foreign keys in one initial schema.
+
+Do not create empty placeholder files merely to match the tree. Every
+created file must have a defined purpose.
+
+======================================================================
+5. CLOUDFLARE CONFIGURATION
+======================================================================
+
+Use wrangler.jsonc, not wrangler.toml.
+
+Create a configuration similar to this, adjusting only when necessary
+and explaining changes:
+
+{ “$schema”: “node_modules/wrangler/config-schema.json”, “name”:
+“roapp”, “main”: “src/index.js”, “compatibility_date”: “2026-11-13”,
+“assets”: { “directory”: “./public”, “binding”: “ASSETS” },
+“d1_databases”: [ { “binding”: “DB”, “database_name”: “roapp-db”,
+“database_id”: “REPLACE_WITH_REAL_D1_DATABASE_ID” } ] }
+
+Do not put tokens, OAuth client secrets, or private keys in
+wrangler.jsonc.
+
+Use Wrangler secrets for sensitive values, such as: -
+DISCORD_PUBLIC_KEY - DISCORD_APPLICATION_ID (if treated as deployment
+configuration, otherwise a non-secret variable) - DISCORD_CLIENT_ID -
+DISCORD_CLIENT_SECRET - DISCORD_BOT_TOKEN - SESSION_SECRET
+
+Use environment bindings for non-secret configuration. Document how to
+set each secret. Do not ask the user to paste secrets into source code.
+
+The compatibility date above is a starting value. Keep it unless a
+tested compatibility requirement justifies changing it.
+
+======================================================================
+6. DISCORD INTERFACE DESIGN
+======================================================================
+
+IMPORTANT: Build interfaces using real Discord capabilities. Do not
+imitate a website dashboard inside Discord.
+
+Discord supports: - Embeds with titles, descriptions, fields, colors,
+thumbnails, images, and footers. - Link buttons and interactive
+buttons. - String select menus and other supported select menu types. -
+Modals with text inputs. - Ephemeral interaction responses. - Message
+updates and follow-up responses.
+
+Discord does NOT support arbitrary HTML, CSS, sidebars, custom card
+layouts, or fully custom application windows inside a bot message.
+
+Visual reference: The user supplied an example of a genuine Discord bot
+embed with a long information embed and several native link buttons
+underneath. RoApp should follow that practical Discord-native style:
+clean embed, readable text, concise sections, and native buttons below
+the embed. Do not recreate the fake multi-column interface mockup.
+
+PUBLIC APPLICATION PANEL - A community owner/authorized manager
+configures and publishes an application panel to a selected channel. -
+The panel is a normal persistent bot message with a Discord embed and
+native buttons/select menus. - It may list application categories,
+descriptions, requirements, and whether each form is open or closed. -
+Applicants click a button or select a form to begin. - Use modals for
+short forms and/or a secure dashboard web form for longer or more
+complex forms. - The panel message ID, channel ID, guild ID, panel type,
+and configuration must be stored in D1. - RoApp should be able to update
+an existing panel message instead of posting duplicates when a manager
+edits its configuration. - Panel interactions must remain functional
+after Worker redeployments because state is stored in D1, not only in
+memory.
+
+CENTRALIZED REVIEW EXPERIENCE - Avoid requiring multiple reviewer
+channels for pending, approved, rejected, and other application
+states. - A community may designate one channel for a permanent RoApp
+management entry message, but reviewer work should primarily happen
+through private ephemeral interactions. - An authorized staff member
+invokes /review (or a review entry button if supported by the design). -
+RoApp checks their current permissions. - RoApp responds ephemerally
+with a simple embed and native dropdown/buttons. - Reviewers can select
+Pending, Under Review, Awaiting Decision, Completed, My Assignments, or
+Search. - The selected view is returned privately to that reviewer. - An
+application can be opened privately with its details and permitted
+actions. - Buttons may include View, Assign, Add Note, Approve, Reject,
+Request Revision, or Move to Interview, depending on permissions. - The
+same Discord message components may be visible to everyone who can see a
+public message. Do not claim individual controls are hidden per user.
+Use ephemeral responses for private reviewer interfaces. - Ephemeral
+responses are interaction responses, not permanent messages. Do not rely
+on them as persistent dashboards or long-lived stored messages.
+
+PUBLIC VS PRIVATE DATA - Public application panel: no applicant private
+answers. - Applicant confirmation: visible only to applicant when
+practical. - Reviewer details: private/ephemeral and
+permission-checked. - Internal notes: only authorized
+reviewers/managers. - Final applicant notifications: only the relevant
+applicant and authorized staff.
+
+======================================================================
+7. COMMANDS — INITIAL V1 PROPOSAL
+======================================================================
+
+Keep the number of slash commands manageable. Prefer a small number of
+commands with subcommands and Discord components.
+
+Applicant commands: - /apply — show available forms or start an
+application. - /myapplications — show the caller’s own applications. -
+/application view — view one of the caller’s own applications, subject
+to ownership checks. - /application withdraw — withdraw an eligible
+application belonging to the caller. - /help — show command guidance.
+
+Reviewer commands: - /review — open the private reviewer interface. -
+/queue — optional shortcut to the review queue if it proves useful;
+avoid duplicate functionality if /review already covers it.
+
+Community management commands: - /setup — begin initial server
+configuration. - /dashboard — provide the RoApp Dashboard link. - /panel
+publish — publish or update a public application panel. - /panel update
+— update a panel. - /panel remove — remove a panel after confirmation. -
+/forms list — list forms. - /forms create — create a draft form or
+direct the manager to the dashboard form builder. - /forms publish —
+publish a form. - /forms close — close a form. - /staff — show
+staff/permission management guidance or dashboard link.
+
+Do not implement every proposed command blindly. Keep commands that have
+clear Discord-native value. More extensive form building, staff
+configuration, analytics, and settings should be dashboard-first.
+
+Platform administration: - Keep platform-owner operations separate from
+community-owner operations. - Do not expose platform administration
+commands to ordinary community administrators. - A private platform
+admin dashboard may be preferable. Do not implement global commands
+until a secure platform-owner identity model is defined.
+
+COMMAND REGISTRATION - Use Discord application command registration
+through scripts/register-commands.js. - Define commands in one
+maintainable source of truth. - Do not duplicate command definitions in
+multiple files. - Document development guild command registration and
+global registration separately. - Do not deploy or register commands
+against an invented Discord application ID.
+
+======================================================================
+8. DASHBOARD AUTHENTICATION AND AUTHORIZATION
+======================================================================
+
+Use Discord OAuth2 as the initial dashboard login.
+
+Initial scopes: - identify - guilds only if server listing is required
+
+The dashboard is linked to the authenticated Discord account, not
+permanently to a single server. A user may manage multiple communities
+from one account, but access is checked independently for every guild.
+
+ACCESS POLICY: 1. The Discord server owner has full community dashboard
+access by default. 2. The server owner may configure one or more Discord
+roles that grant dashboard access. 3. Discord Administrator permission
+does NOT automatically grant RoApp dashboard access. 4. Having
+permission to manage the bot does NOT automatically grant dashboard
+access. 5. Regular members have no dashboard management access unless
+explicitly authorized. 6. Dashboard access roles and permissions are
+configured per guild. 7. The platform owner is a separate
+identity/authorization domain from each community owner.
+
+For every protected dashboard request: - Validate the session. -
+Identify the authenticated Discord user. - Resolve the selected guild
+from server-side authorization context. - Verify the user is still the
+guild owner or holds an allowed configured role. - Check the requested
+granular permission. - Scope all D1 queries by guild_id. - Deny by
+default if Discord authorization cannot be confirmed. - Do not trust
+guild IDs, role IDs, or permissions asserted only by browser
+JavaScript. - Avoid long-lived stale permission claims. Revalidate
+current access as appropriate and provide session expiry/revocation.
+
+Use secure session handling: HttpOnly, Secure, SameSite cookies where
+compatible; CSRF protection for state-changing requests; OAuth state
+validation; safe redirect URI validation; secure session identifiers;
+and appropriate expiration/revocation.
+
+======================================================================
+9. APPLICATION FEATURES AND WORKFLOW
+======================================================================
+
+Core form field types: - Short text - Long text - Multiple choice -
+Dropdown - Checkbox - Yes/no - Number - Date - Roblox username
+
+Forms should support: - Title and description. - Instructions and
+requirements. - Required and optional questions. - Question ordering. -
+Input validation and length limits. - Open/closed state. - Optional
+submission cooldowns. - Optional duplicate-submission rules. - Versioned
+published forms.
+
+When an application is submitted, preserve the exact form version or a
+snapshot of the question set used. Editing a form later must not alter
+the meaning of already submitted applications.
+
+Application reference format example: APP-2026-000124
+
+Suggested statuses: - Draft - Pending - Under Review - Interview -
+Revision Requested - Approved - Rejected - Withdrawn
+
+The backend must validate allowed status transitions. Do not allow
+arbitrary status changes from the frontend.
+
+Applicant identity: - Discord user ID is the primary platform
+identity. - Applicant may provide Roblox username. - Resolve username to
+Roblox user ID using available public Roblox endpoints where possible. -
+A username lookup proves that the account exists; it does not prove
+ownership. - Roblox OAuth2/account ownership verification is optional
+future functionality, not a launch requirement. - Do not claim group
+rank or account verification unless the relevant Roblox API data was
+actually retrieved and validated.
+
+Review functionality: - Reviewer assignment and unassignment. - Internal
+notes. - Decision reason. - Review history. - Multiple reviewers if
+configured. - Applicant status notifications. - Audit/event history.
+
+======================================================================
+10. D1 DATABASE REQUIREMENTS
+======================================================================
+
+Use ONE D1 database for the initial release.
+
+Use ONE initial schema file: src/database/schema.sql
+
+Do not create migrations/ for this brand-new database. The initial
+schema is executed once against the newly created empty D1 database. If
+schema evolution becomes necessary after launch, introduce migrations
+later.
+
+Initial logical table groups may include: - guilds - guild_settings -
+dashboard_role_access - forms - form_versions - form_questions -
+applications - application_answers - application_reviews -
+application_notes - application_events - staff_members or staff
+permission assignments, if needed - panels - dashboard_sessions (only if
+server-side sessions are stored in D1) - notification_jobs (only if
+persistent retry handling is implemented) - audit_logs
+
+Do not create redundant tables. Explain the purpose of each table before
+finalizing the schema.
+
+Database rules: - Use primary keys and appropriate foreign keys. - Use
+unique constraints for identifiers that must be unique. - Index common
+lookups such as guild_id, applicant Discord ID, status, form ID, and
+created_at. - Use composite constraints/indexes where tenant scoping
+requires them. - Use prepared statements and D1 batch/transaction
+patterns where appropriate. - Store timestamps in UTC in a consistent
+format. - Avoid storing derived information unnecessarily. - Ensure that
+all community-specific reads and writes are scoped to guild_id. - Avoid
+cross-tenant data leakage even when a caller guesses another
+application’s reference ID.
+
+======================================================================
+11. WORKER REQUEST ROUTING
+======================================================================
+
+Use one Worker entry point.
+
+Expected high-level routes: - POST /api/discord/interactions — Discord
+interaction endpoint. - GET /auth/discord — begin Discord OAuth2
+authorization. - GET /auth/discord/callback — validate OAuth callback
+and establish session. - POST /api/… — authenticated dashboard API
+routes. - GET /… — static dashboard assets served through the configured
+ASSETS binding.
+
+Use clear routing. Do not add a routing framework unless the route count
+becomes difficult to maintain.
+
+The Worker should: 1. Handle Discord interaction requests. 2. Verify the
+Discord request signature before parsing/acting on the interaction. 3.
+Respond to Discord PING correctly. 4. Dispatch application commands,
+component interactions, and modal submissions. 5. Route dashboard
+authentication and API requests. 6. Serve static assets through
+Cloudflare Workers assets. 7. Return safe errors without leaking secrets
+or stack traces to users.
+
+======================================================================
+12. SECURITY AND RELIABILITY
+======================================================================
+
+Required: - Discord signature verification. - OAuth2 state validation. -
+Secure session cookies. - CSRF protection for state-changing dashboard
+operations. - Server-side authorization on every protected operation. -
+Guild-scoped database access. - Prepared SQL statements. - Input
+validation and length limits. - Rate limiting or cooldowns for
+abuse-prone operations where practical. - Safe error handling and
+logging. - Audit records for privileged actions and application
+decisions. - No secrets in source control. - No applicant private
+answers in public channels. - No internal reviewer notes exposed to
+applicants. - Prevent duplicate or replayed sensitive actions where
+practical. - Confirm destructive actions such as deleting forms or
+removing panels. - Do not use in-memory state as the only source of
+truth for panels, applications, or permissions.
+
+======================================================================
+13. BRANDING AND USER EXPERIENCE
+======================================================================
+
+Brand name: RoApp Visual identity: dark navy/near-black base with
+electric blue and cyan accents, metallic silver highlights. Logo
+direction: tilted Roblox-inspired square emblem above/beside the RoApp
+wordmark; “Ro” in silver/white and “App” in electric blue/cyan. Use the
+supplied RoApp logo asset if it is provided to the workspace. Do not
+invent a file path or assume the asset is present. Dashboard should be
+clean, responsive, accessible, and usable on mobile. Do not overdecorate
+the Discord embeds. Prioritize readable text and native Discord
+components. Use consistent wording and button labels across bot and
+dashboard.
+
+Suggested public description: “RoApp helps Roblox communities create,
+manage, and process applications through Discord and the web.”
+
+======================================================================
+14. IMPLEMENTATION PLAN — FOLLOW IN ORDER
+======================================================================
+
+PHASE 0 — WORKSPACE INSPECTION AND PLAN 1. Inspect the workspace. 2.
+Confirm whether it is empty or contains existing files. 3. Report the
+intended stack and exact folder structure. 4. Identify anything that
+needs user-provided configuration. 5. Do not write implementation code
+until this inspection is reported.
+
+PHASE 1 — PROJECT FOUNDATION 1. Create package.json with only necessary
+scripts and dependencies. 2. Create wrangler.jsonc. 3. Create
+src/index.js. 4. Create a basic health route for local testing. 5.
+Create the initial database helper. 6. Create src/database/schema.sql
+with the initial reviewed schema. 7. Add .gitignore and README.md. 8.
+Explain how to create the D1 database and apply schema.sql once. 9. Test
+the Worker locally. 10. Do not add Discord features yet.
+
+PHASE 2 — DISCORD INTERACTION FOUNDATION 1. Implement Discord signature
+verification. 2. Implement the interaction endpoint. 3. Handle Discord
+PING. 4. Add a minimal /help command. 5. Add a minimal /setup command.
+6. Implement safe response builders for messages and embeds. 7. Test
+valid and invalid signatures. 8. Test interaction dispatch locally using
+appropriate fixtures. 9. Do not claim a live Discord test unless real
+credentials and a test server were supplied.
+
+PHASE 3 — MULTI-GUILD FOUNDATION AND PERMISSIONS 1. Register a guild
+when RoApp is installed or first configured, using a supported
+interaction/event flow. 2. Store guild settings. 3. Implement server
+owner and configured dashboard role access model. 4. Implement backend
+permission checks. 5. Add tests proving one guild cannot read or change
+another guild’s data. 6. Keep platform administrator permissions
+separate.
+
+PHASE 4 — APPLICATION FORMS AND SUBMISSIONS 1. Implement form creation
+and versioning. 2. Implement public application panel creation/update.
+3. Implement buttons and select menus. 4. Implement modal submission for
+supported short forms. 5. Use dashboard web forms for long forms if
+needed. 6. Generate unique application references. 7. Store answers
+securely. 8. Implement /apply and /myapplications. 9. Implement
+applicant confirmation and status visibility. 10. Test duplicate
+submission and closed-form behavior.
+
+PHASE 5 — PRIVATE REVIEW INTERFACE 1. Implement /review. 2. Check
+reviewer permissions before responding. 3. Return an ephemeral reviewer
+interface. 4. Implement category/status selection menus. 5. Implement
+application detail views. 6. Implement assignment, internal notes, and
+permitted decisions. 7. Implement status transition validation. 8.
+Record review events and audit logs. 9. Test that unauthorized users
+cannot act by manually invoking component custom IDs. 10. Test that
+reviewers cannot access another guild’s applications.
+
+PHASE 6 — DASHBOARD AUTHENTICATION 1. Implement Discord OAuth2 login. 2.
+Validate OAuth state. 3. Establish secure sessions. 4. List servers
+available to the user. 5. Let the user select a server. 6. Verify
+owner/configured role access on the backend. 7. Build the responsive
+dashboard shell. 8. Implement logout and session expiration. 9. Test
+unauthorized access and cross-guild isolation.
+
+PHASE 7 — DASHBOARD FEATURES 1. Application overview. 2. Form builder
+and form publishing. 3. Application list and detail views. 4. Staff and
+permission management. 5. Panel configuration. 6. Community settings. 7.
+Basic statistics and audit history. 8. Ensure the dashboard uses the
+same backend modules and permission logic as Discord interactions.
+
+PHASE 8 — ROBLOX INTEGRATION AND POLISH 1. Add public Roblox username
+resolution. 2. Store Roblox user ID when resolved. 3. Clearly label
+unverified usernames. 4. Add optional group checks only if supported and
+tested. 5. Add notification retry behavior only when needed. 6. Test
+mobile usability, errors, permission boundaries, and deployment. 7.
+Document production setup and limitations.
+
+======================================================================
+15. TESTING AND ACCEPTANCE CRITERIA
+======================================================================
+
+RoApp is not ready for release until the following are verified:
+
+FOUNDATION - Worker starts locally. - Health route responds. - D1
+binding works. - Initial schema applies cleanly to an empty D1
+database. - No secrets are committed.
+
+DISCORD - Invalid signatures are rejected. - Valid Discord PING receives
+the correct response. - Slash commands are routed correctly. - Buttons,
+selects, and modals are routed correctly. - Interaction responses meet
+Discord timing requirements. - Persistent panel messages can be updated
+using stored IDs.
+
+MULTI-TENANCY - Guild A cannot view Guild B applications. - Guild A
+cannot modify Guild B forms or settings. - Guessing another
+application’s reference does not bypass guild scoping. -
+Browser-supplied guild IDs are not trusted without server-side
+authorization.
+
+PERMISSIONS - Guild owner receives community management access. -
+Configured dashboard roles receive only assigned access. - Discord
+Administrator alone does not grant dashboard access. - Regular members
+cannot access reviewer or dashboard controls. - Unauthorized component
+interactions are denied. - Permission removal takes effect after
+revalidation.
+
+APPLICATIONS - Closed forms cannot accept new submissions. - Required
+fields are enforced. - Application references are unique. - Form edits
+do not alter old submission snapshots. - Applicants can only view or
+withdraw their own eligible applications. - Internal notes remain
+private.
+
+REVIEW - Review interface is ephemeral. - Reviewer permissions are
+checked on every action. - Decisions are recorded with actor and
+timestamp. - Invalid status transitions are rejected. - Applicant
+notifications do not expose internal notes.
+
+DASHBOARD - OAuth state is validated. - Sessions are secure and
+expire. - Guild selection does not grant access by itself. - API
+endpoints enforce permissions server-side. - Dashboard works on mobile
+and desktop.
+
+======================================================================
+16. REQUIRED RESPONSE FORMAT FROM GENSPARK
+======================================================================
+
+At the beginning, report: - Workspace status. - Stack confirmation. -
+Folder structure. - Any required user inputs.
+
+At the end of each phase, report: A. Completed work. B. Exact files
+created or modified. C. Tests executed. D. Test results. E. Known
+limitations or unfinished items. F. Next phase proposed.
+
+Do not report “complete” when only a scaffold or mockup exists. Do not
+fabricate test results. Do not silently skip a requirement. Do not start
+the next phase until the user approves or explicitly instructs you to
+continue.
+
+======================================================================
+17. SIMPLE STEP-BY-STEP GUIDE FOR THE USER
+======================================================================
+
+STEP 1 — Start GenSpark Open GenSpark and create a new coding
+project/workspace.
+
+STEP 2 — Provide the project brief Paste this entire master prompt into
+GenSpark. If the platform supports project instructions, save it as the
+permanent project specification.
+
+STEP 3 — Add the logo Upload the RoApp logo image as a project asset if
+you want GenSpark to use it in the dashboard. Tell GenSpark to use the
+supplied asset only if it is actually present. Do not ask it to recreate
+the logo unnecessarily.
+
+STEP 4 — Request Phase 0 only Tell GenSpark: “Start with PHASE 0 only.
+Inspect the workspace, confirm the stack and folder structure, list
+required configuration, and wait for my approval. Do not write
+implementation code yet.”
+
+STEP 5 — Review the plan Check that GenSpark uses: - JavaScript ES
+modules. - Cloudflare Workers. - One D1 database. - wrangler.jsonc. -
+One initial schema.sql. - Vanilla JavaScript frontend. - No unnecessary
+frameworks or infrastructure.
+
+STEP 6 — Build one phase at a time After reviewing a phase, instruct
+GenSpark: “Proceed with the next phase only. Follow the master prompt
+strictly. Show changed files and test results before continuing.”
+
+STEP 7 — Configure Cloudflare When requested, create the Cloudflare
+Worker and D1 database in your own Cloudflare account. Provide only
+non-secret identifiers where appropriate. Set tokens and OAuth secrets
+using Wrangler secrets; never paste them into source files.
+
+STEP 8 — Configure Discord Create the RoApp application in the Discord
+Developer Portal. Configure the bot, interaction endpoint, OAuth2
+redirect URI, and command registration. Keep the bot token and client
+secret private.
+
+STEP 9 — Test in a private Discord server Invite RoApp to a test server.
+Test the public application panel, applicant flow, private reviewer
+interface, permissions, and dashboard login before inviting real
+communities.
+
+STEP 10 — Production launch Only deploy publicly after the acceptance
+criteria in Section 15 pass. Keep a backup of the D1 database and
+project source before significant production changes.
+
+======================================================================
+18. FIRST MESSAGE TO GENSPARK
+======================================================================
+
+Use this exact instruction after pasting the master prompt:
+
+“Read the entire RoApp master specification. Do not start coding yet.
+Execute PHASE 0 only. Inspect the current workspace, confirm the
+proposed lightweight JavaScript/Cloudflare architecture, show the exact
+folder structure you intend to create, identify any conflicts or missing
+information, and wait for my approval. Be strict: do not add unrequested
+frameworks, databases, services, migrations, or features.”
+
+END OF MASTER PROMPT
+
+======================================================================
+19. FINAL DELIVERY REQUIREMENT — COMPLETE PROJECT ZIP
+======================================================================
+
+PRIMARY OBJECTIVE Generate the complete RoApp project as a working,
+deployable project and deliver it as one ZIP archive. Do not stop after
+producing a plan, scaffold, partial code samples, or a folder tree.
+
+The expected final deliverable is: RoApp-Production-Project.zip
+
+The ZIP must contain the complete project source, configuration
+templates, SQL schema, frontend assets, scripts, documentation, tests,
+and any other files required to install, configure, test, and deploy
+RoApp.
+
+IMPORTANT REALITY CHECK “Production-ready” means the codebase is fully
+implemented, security-conscious, tested as far as possible in the
+available environment, documented, and ready for the owner to configure
+with real Cloudflare and Discord credentials. Do not claim live
+production operation, successful Discord registration, or successful
+Cloudflare deployment unless those actions were actually performed with
+authorized credentials and verified.
+
+Do not fabricate: - Discord application IDs, bot tokens, public keys,
+OAuth credentials, guild IDs, or user IDs. - Cloudflare account IDs, D1
+database IDs, or deployed URLs. - Successful API calls, tests, or
+deployments that were not run. Use clearly documented placeholders and
+setup instructions for values the project owner must supply.
+
+DELIVERY RULES 1. Build the entire project, not just Phase 1. 2. Follow
+all product, architecture, security, feature, and folder requirements in
+this master prompt. 3. You may organize the implementation internally
+into milestones, but do not stop and wait for approval after each
+milestone. Complete the full implementation before final delivery unless
+a genuinely blocking decision or missing user credential prevents safe
+progress. 4. If credentials are unavailable, implement the complete
+integration code and provide safe configuration placeholders. Include
+mock/local tests that do not require live credentials. 5. Do not leave
+core functionality as TODO comments, pseudocode, fake buttons, static
+mockups, or unimplemented stubs. 6. Every visible button, command, menu,
+form, and dashboard action must either work or be clearly marked as not
+yet available. Do not present inert controls as finished functionality.
+7. Do not bundle node_modules, .wrangler caches, secrets, local
+databases containing real user data, logs, temporary files, or
+machine-specific build artifacts in the ZIP. 8. Include
+package-lock.json if npm dependencies are used. 9. Include .env.example
+or an equivalent documented configuration template containing
+placeholder values only. Never include real secrets. 10. Include a
+complete README.md with exact setup, local development, database
+initialization, Discord setup, OAuth setup, testing, deployment, and
+troubleshooting instructions. 11. Include a LICENSE only if the project
+owner specifies one or explicitly asks for one. Do not invent a license.
+12. Before zipping, run the available formatting, linting, tests,
+type/syntax checks applicable to JavaScript, and a production
+build/deployment dry run where supported. 13. Inspect the ZIP contents
+after creation. Confirm that the archive opens and contains the expected
+files. 14. Deliver the ZIP as a downloadable artifact and also provide a
+concise summary of what is included, what was tested, and what still
+requires owner credentials or live setup.
+
+REQUIRED PROJECT CONTENTS At minimum, the final ZIP should include:
+
+roapp/ |– src/ | |– index.js | |– discord/ | | |– interactions.js | | |–
+commands.js | | |– components.js | | |– responses.js | |– modules/ | |
+|– applications.js | | |– forms.js | | |– reviews.js | | |– panels.js |
+| |– permissions.js | | |– guilds.js | | |– roblox.js | | |–
+notifications.js | |– dashboard/ | | |– auth.js | | |– routes.js | | |–
+api.js | |– database/ | | |– db.js | | |– queries.js | | |– schema.sql |
+|– utils/ | |– discord.js | |– validation.js | |– helpers.js |– public/
+| |– index.html | |– css/style.css | |– js/app.js | |– assets/ (only
+real supplied assets; do not invent a logo file) |– scripts/ | |–
+register-commands.js | |– initialize-database instructions/script if
+genuinely useful |– tests/ | |– unit and integration tests for critical
+logic |– docs/ | |– architecture.md | |– deployment.md | |–
+discord-setup.md | |– security.md |– package.json |– package-lock.json
+(if applicable) |– wrangler.jsonc |– .gitignore |– .env.example |–
+README.md
+
+You may add files needed for a complete implementation, but explain any
+significant deviation. Do not create empty files just to match this
+tree.
+
+PRODUCTION IMPLEMENTATION EXPECTATIONS
+
+A. DISCORD BOT - Correctly verify Discord Ed25519 interaction
+signatures. - Correctly handle PING. - Support the implemented slash
+commands and register them using a repeatable script. - Support
+Discord-native embeds, buttons, select menus, and modals. - Handle
+public application panels and update stored panel messages using Discord
+REST. - Handle private reviewer workflows with ephemeral interaction
+responses. - Use valid Discord component structures and custom_id values
+within Discord’s limits. - Handle expired, malformed, unauthorized, or
+stale component interactions safely. - Respect Discord interaction
+response deadlines and use deferred responses/follow-ups where
+required. - Use bot token authentication only on the server. - Do not
+require a persistent Gateway connection for the initial feature set.
+
+B. APPLICATION ENGINE - Implement form definitions, published
+versions/snapshots, question validation, submission, unique references,
+applicant ownership, status history, and withdrawal rules. - Validate
+required fields and limits on the server, not only in browser code or
+Discord UI. - Ensure closed forms cannot accept submissions. - Ensure
+old submissions remain tied to their original form version. - Prevent
+duplicate or repeated decisions where inappropriate. - Keep internal
+notes private.
+
+C. REVIEW AND PERMISSIONS - Implement the centralized /review experience
+using ephemeral Discord interactions. - Implement reviewer queue filters
+and application detail views. - Implement role-based, per-guild
+permissions. - The Discord guild owner has full community dashboard
+access by default. - Only explicitly configured roles receive dashboard
+access. - Discord Administrator permission alone must not grant
+dashboard access. - Re-check permissions for every protected action. -
+Do not rely on the visual presence or absence of buttons as a security
+control. - Record decisions, assignments, notes, and privileged actions
+in history/audit records.
+
+D. DASHBOARD - Implement Discord OAuth2 login and callback with state
+validation. - Implement secure server-side sessions and logout. -
+Implement server-side authorization and guild isolation. - Implement
+server selection based on the authenticated user’s actual guild
+membership and the configured access policy. - Implement a responsive,
+accessible dashboard using vanilla HTML, CSS, and JavaScript. -
+Implement the agreed initial dashboard features: overview, forms,
+applications, review details where appropriate, staff/permissions, panel
+configuration, settings, and basic statistics. - Do not rely on
+client-supplied guild IDs or permission claims. - Protect state-changing
+operations against CSRF. - Validate redirect destinations and OAuth
+callback parameters.
+
+E. ROBLOX INTEGRATION - Implement public Roblox username resolution only
+where supported by documented public endpoints. - Clearly distinguish
+“username resolved” from “account ownership verified”. - Do not
+implement fake verification or imply Roblox OAuth ownership verification
+exists unless fully implemented and tested. - If an API is unavailable
+or rate-limited, fail gracefully and explain the status.
+
+F. NOTIFICATIONS - Implement applicant-facing status notifications
+without exposing internal reviewer notes. - Handle Discord API errors
+and rate limits correctly. - If reliable retry scheduling cannot be
+implemented without adding infrastructure, document the limitation and
+use a simple durable D1 retry approach only if it can be implemented
+safely. Do not add Cloudflare Queues automatically.
+
+G. DATABASE - Use one D1 database. - Include one complete initial schema
+at src/database/schema.sql. - Include constraints, foreign keys,
+indexes, and tenant-safe relationships. - Include a documented one-time
+command to apply the schema to a new empty database. - Do not create a
+migrations directory for the initial database. - Ensure queries always
+enforce guild scope for tenant-owned data.
+
+H. SECURITY - Perform a security review before packaging. - Check
+authentication, authorization, tenant isolation, input validation, SQL
+injection, CSRF, session handling, secret exposure, error leakage, and
+Discord interaction verification. - Use secure cookie settings and
+appropriate session expiration. - Never log bot tokens, OAuth secrets,
+session secrets, or sensitive applicant answers. - Add rate
+limiting/cooldowns where practical and document any platform
+constraints. - Do not claim a formal security audit or penetration test
+unless one was actually conducted.
+
+TEST REQUIREMENTS Create automated tests for, at minimum: - Discord
+signature verification success and failure. - Discord PING response. -
+Interaction routing for commands and components. - Input and form
+validation. - Application reference uniqueness logic. - Application
+status transition rules. - Applicant ownership checks. - Guild/tenant
+isolation. - Permission checks for owner, configured role,
+administrator-only user, and regular member. - Dashboard OAuth state
+validation and session handling where testable. - CSRF checks for
+state-changing routes. - Unauthorized component interaction rejection. -
+Internal note privacy. - SQL schema initialization on a fresh local/test
+database where the environment permits.
+
+If live Discord or Cloudflare credentials are not supplied, clearly
+separate: - Tests executed successfully locally. - Tests requiring real
+credentials. - Tests requiring a deployed environment. Never mark
+credential-dependent tests as passed when they were not run.
+
+FINAL ZIP VERIFICATION Before delivery: 1. Run all available tests. 2.
+Run JavaScript syntax checks. 3. Run lint/format checks if configured.
+4. Run Wrangler validation or dry-run commands where supported. 5. Check
+the D1 schema can initialize a fresh database. 6. Search the project for
+TODO, FIXME, placeholder handlers, empty functions, and inert buttons.
+Resolve all core-feature findings or document them explicitly. 7. Search
+for secrets and accidental credentials. 8. Confirm the project uses
+wrangler.jsonc and does not contain wrangler.toml. 9. Confirm there is
+no initial migrations/ directory. 10. Confirm there is one D1 database
+binding and no unrequested R2/Redis/services. 11. Create
+RoApp-Production-Project.zip. 12. Re-open/list the archive and verify
+its contents. 13. Provide the download link to the ZIP.
+
+FINAL RESPONSE FORMAT When finished, provide: - Download link to
+RoApp-Production-Project.zip. - Short feature summary. - Exact tests run
+and their results. - Deployment prerequisites the owner must complete. -
+Any limitations that remain. - The first command the owner should run
+after extracting the ZIP.
+
+Do not answer with another plan instead of the ZIP. The deliverable is
+the complete project archive.
