@@ -143,19 +143,22 @@ export async function createSession(env, user, token, expiresIn) {
   );
   return { sid, csrf, ttl, expires };
 }
+function rejectState(reason) {
+  // Category only: never log the state value, cookie value or any token.
+  console.warn("RoApp OAuth state rejected", { reason });
+  throw new AppError(400, "oauth_state_invalid");
+}
 export async function consumeState(env, state, cookieState) {
-  assert(
-    /^[a-f0-9]{64}$/.test(state || "") && equal(state, cookieState),
-    400,
-    "oauth_state_invalid",
-  );
+  if (!/^[a-f0-9]{64}$/.test(state || "")) rejectState("state_malformed");
+  if (!cookieState) rejectState("cookie_missing");
+  if (!equal(state, cookieState)) rejectState("cookie_mismatch");
   const s = await one(
     env,
     "DELETE FROM oauth_states WHERE state_hash=? AND expires_at>? RETURNING state_hash",
     await digest(state),
     epoch(),
   );
-  assert(s, 400, "oauth_state_invalid");
+  if (!s) rejectState("state_unknown_expired_or_used");
 }
 export async function authRoute(request, env) {
   const url = new URL(request.url),
@@ -200,11 +203,25 @@ export async function authRoute(request, env) {
     });
   }
   if (url.pathname === "/auth/discord/callback" && request.method === "GET") {
-    await consumeState(
-      env,
-      url.searchParams.get("state"),
-      cookies(request)[cookieName(env, "oauth")],
-    );
+    try {
+      await consumeState(
+        env,
+        url.searchParams.get("state"),
+        cookies(request)[cookieName(env, "oauth")],
+      );
+    } catch (e) {
+      if (!(e instanceof AppError) || e.code !== "oauth_state_invalid") throw e;
+      // Still a rejection: no token exchange, no session. Send the person back
+      // to the dashboard with a recoverable message instead of a raw JSON page.
+      // The oauth cookie is left alone so a newer in-flight attempt still works.
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: "/?auth_error=oauth_state_invalid",
+          "Cache-Control": "no-store",
+        },
+      });
+    }
     assert(
       !url.searchParams.has("error") && url.searchParams.get("code"),
       400,
@@ -237,6 +254,15 @@ export async function authRoute(request, env) {
       502,
       "invalid_oauth_response",
     );
+    if (typeof token.scope === "string") {
+      const granted = token.scope.split(/[\s,]+/);
+      assert(
+        granted.includes("identify") && granted.includes("guilds"),
+        403,
+        "oauth_scope_missing",
+        "Discord did not grant the required permissions. Sign in again and approve all requested access.",
+      );
+    }
     const user = await discord(env, "/users/@me", {
       token: token.access_token,
     });

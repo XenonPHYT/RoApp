@@ -6,7 +6,7 @@ import {
   checkCsrf,
   decrypt,
 } from "./auth.js";
-import { authorize } from "../modules/permissions.js";
+import { authorize, evaluatePermissions } from "../modules/permissions.js";
 import { currentMember } from "../modules/guilds.js";
 import { discord } from "../utils/discord.js";
 import { one, all, run, rateLimit } from "../database/db.js";
@@ -32,31 +32,50 @@ export async function guildChoices(env, s) {
       "Your account has more than 2,000 servers. Contact the operator.",
     );
   }
-  const out = [];
+  const candidates = [];
   for (const g of guilds) {
     const stored = await one(
       env,
       "SELECT guild_id,name FROM guilds WHERE guild_id=?",
       g.id,
     );
-    if (!stored) continue;
-    const membership = await currentMember(env, g.id, s.user_id);
-    const { evaluatePermissions } = await import("../modules/permissions.js");
-    const access = evaluatePermissions(
-      membership,
-      await all(
-        env,
-        "SELECT * FROM dashboard_role_access WHERE guild_id=?",
-        g.id,
-      ),
-    );
-    out.push({
-      guild_id: g.id,
-      name: membership.name,
-      dashboard: access.dashboard,
-      permissions: access.permissions,
-    });
+    if (stored) candidates.push(g.id);
   }
+  // Each community is verified independently and server-side. A failure for one
+  // community fails closed for that community only; it must not hide the others.
+  const results = await Promise.all(
+    candidates.map(async (id) => {
+      try {
+        const membership = await currentMember(env, id, s.user_id);
+        const access = evaluatePermissions(
+          membership,
+          await all(
+            env,
+            "SELECT * FROM dashboard_role_access WHERE guild_id=?",
+            id,
+          ),
+        );
+        return {
+          ok: true,
+          value: {
+            guild_id: id,
+            name: membership.name,
+            dashboard: access.dashboard,
+            permissions: access.permissions,
+          },
+        };
+      } catch (e) {
+        console.warn("RoApp community access check failed", {
+          category: e?.code || e?.name || "Error",
+          upstream: e?.upstreamStatus,
+        });
+        return { ok: false, error: e };
+      }
+    }),
+  );
+  const out = results.filter((r) => r.ok).map((r) => r.value);
+  // If every check failed, report the error instead of an empty (misleading) list.
+  if (!out.length && results.length) throw results[0].error;
   return out;
 }
 export async function dashboardRoute(request, env) {
