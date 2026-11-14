@@ -152,9 +152,35 @@ async function api(path, method = "GET", body) {
   if (!res.ok) {
     const err = new Error(data.message || data.error || "Request failed");
     err.status = res.status;
+    err.code = data.error;
+    // The server ended this session (expired, signed out elsewhere, token revoked).
+    if (res.status === 401 && state.session && path !== "/api/logout")
+      sessionEnded();
     throw err;
   }
   return data;
+}
+function sessionEnded() {
+  if (!state.session) return;
+  state.session = null;
+  $("#sidebar").hidden = true;
+  $("#account").replaceChildren(
+    el("a", { class: "button primary", href: "/auth/discord" }, "Sign in with Discord"),
+  );
+  notify("Your session expired. Sign in again to continue.", true);
+  mount(
+    card(
+      el("h2", {}, "Your session has expired"),
+      el(
+        "p",
+        {},
+        "For your security you were signed out. Sign in again to continue where you left off.",
+      ),
+      actions(
+        el("a", { class: "button primary", href: "/auth/discord" }, "Sign in again"),
+      ),
+    ),
+  );
 }
 const manage = (path, method = "GET", body) =>
   api("/api/manage/" + path, method, body);
@@ -1409,6 +1435,8 @@ async function ownDetail(guild, id) {
   );
 }
 const AUTH_ERRORS = {
+  oauth_denied:
+    "Discord sign-in was cancelled. You can try again whenever you are ready.",
   oauth_state_invalid:
     "Sign-in could not be verified (the login session was missing, expired or already used). Start sign-in again from this same browser.",
 };
@@ -1459,17 +1487,43 @@ async function initialize() {
   try {
     state.session = await api("/api/session");
   } catch (e) {
-    if (e.status === 401) return;
+    if (e.status === 401) {
+      if (e.code === "session_expired")
+        notify("Your session expired. Sign in again.", true);
+      return;
+    }
     throw e;
   }
   $("#account").replaceChildren(
     el("span", { class: "username" }, state.session.user.username),
     btn("Sign out", async () => {
-      await api("/api/logout", "POST", {});
+      try {
+        await api("/api/logout", "POST", {});
+      } catch (e) {
+        // Already signed out on the server: nothing left to end.
+        if (e.status !== 401) throw e;
+      }
       sessionStorage.clear();
       location.assign("/");
     }),
   );
+  // Coming back to a tab that was left open: confirm (and extend) the session, or
+  // show the sign-in prompt right away instead of failing on the next click.
+  let lastCheck = Date.now();
+  document.addEventListener("visibilitychange", async () => {
+    if (
+      document.visibilityState !== "visible" ||
+      !state.session ||
+      Date.now() - lastCheck < 300000
+    )
+      return;
+    lastCheck = Date.now();
+    try {
+      state.session.expires_at = (await api("/api/session")).expires_at;
+    } catch {
+      // A 401 is handled by api(); other errors are retried on the next visit.
+    }
+  });
   state.guilds = await api("/api/guilds");
   $("#sidebar").hidden = false;
   $("#setup-open").addEventListener(
