@@ -7,12 +7,12 @@ import {
   decrypt,
 } from "./auth.js";
 import { authorize, evaluatePermissions } from "../modules/permissions.js";
-import { currentMember } from "../modules/guilds.js";
+import { currentMember, setupGuild } from "../modules/guilds.js";
 import { discord } from "../utils/discord.js";
 import { one, all, run, rateLimit } from "../database/db.js";
 import { assert, json, readJson, AppError } from "../utils/helpers.js";
 import { snowflake } from "../utils/validation.js";
-export async function guildChoices(env, s) {
+async function userGuilds(env, s) {
   let after = "",
     guilds = [];
   for (let page = 0; page < 10; page++) {
@@ -32,6 +32,27 @@ export async function guildChoices(env, s) {
       "Your account has more than 2,000 servers. Contact the operator.",
     );
   }
+  return guilds;
+}
+// Servers the signed-in user owns (per Discord) that are not registered yet.
+// This list is only a convenience for the UI; POST /api/guild/setup re-verifies
+// ownership server-side with the bot before anything is written.
+export async function setupCandidates(env, s) {
+  const out = [];
+  for (const g of await userGuilds(env, s)) {
+    if (g?.owner !== true || typeof g.id !== "string") continue;
+    const stored = await one(
+      env,
+      "SELECT guild_id FROM guilds WHERE guild_id=?",
+      g.id,
+    );
+    if (!stored)
+      out.push({ guild_id: g.id, name: String(g.name || g.id).slice(0, 100) });
+  }
+  return out;
+}
+export async function guildChoices(env, s) {
+  const guilds = await userGuilds(env, s);
   const candidates = [];
   for (const g of guilds) {
     const stored = await one(
@@ -102,6 +123,29 @@ export async function dashboardRoute(request, env) {
       guild_id,
       s.id_hash,
     );
+    return json({ guild_id });
+  }
+  if (path === "/api/setup/candidates" && request.method === "GET")
+    return json(await setupCandidates(env, s));
+  if (path === "/api/guild/setup" && request.method === "POST") {
+    const { guild_id } = await readJson(request);
+    snowflake(guild_id);
+    try {
+      // Same owner check as the /setup command: the bot reads the real owner from Discord.
+      await setupGuild(env, guild_id, s.user_id);
+    } catch (e) {
+      if (
+        e instanceof AppError &&
+        e.code === "discord_request_failed" &&
+        [403, 404].includes(e.upstreamStatus)
+      )
+        throw new AppError(
+          409,
+          "bot_not_installed",
+          "RoApp is not installed in that server, or cannot see it. Install the bot there, then try again.",
+        );
+      throw e;
+    }
     return json({ guild_id });
   }
   if (path.startsWith("/api/applicant/")) {
