@@ -1408,7 +1408,16 @@ async function ownDetail(guild, id) {
     revisions,
   );
 }
+const AUTH_ERRORS = {
+  oauth_state_invalid:
+    "Sign-in could not be verified (the login session was missing, expired or already used). Start sign-in again from this same browser.",
+};
 async function initialize() {
+  const authError = new URLSearchParams(location.search).get("auth_error");
+  if (authError) {
+    history.replaceState(null, "", location.pathname);
+    notify(AUTH_ERRORS[authError] || "Sign-in failed. Please try again.", true);
+  }
   const intent =
     location.search || sessionStorage.getItem("roapp-intent") || "";
   if (intent) sessionStorage.setItem("roapp-intent", intent);
@@ -1464,7 +1473,20 @@ async function initialize() {
       await api("/api/guild/select", "POST", { guild_id: selected.guild_id });
     await loadContext();
     await showTab("overview");
-  } else await showApplicant(state.guilds[0]?.guild_id);
+  } else if (!state.guilds.length) {
+    mount(
+      heading("No communities found"),
+      empty(
+        "RoApp has no registered community that includes your Discord account. The server owner must run /setup in the server after installing RoApp.",
+      ),
+    );
+  } else {
+    notify(
+      "You do not have dashboard access in any community. Ask the server owner to grant one of your roles dashboard access.",
+      true,
+    );
+    await showApplicant(state.guilds[0]?.guild_id);
+  }
 }
 initialize().catch((e) => {
   notify(e.message, true);
