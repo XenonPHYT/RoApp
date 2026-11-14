@@ -118,6 +118,13 @@ nav button.active {
   background: #102c44;
   border-color: #174562;
 }
+#setup-open {
+  margin-top: 12px;
+  width: 100%;
+  justify-content: flex-start;
+  background: transparent;
+  border-color: transparent;
+}
 label {
   font-size: 13px;
   font-weight: 650;
