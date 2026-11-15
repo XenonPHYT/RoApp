@@ -99,7 +99,7 @@ h1 span {
   display: flex;
   flex: 1 0 auto;
 }
-aside {
+#sidebar {
   width: 255px;
   flex-shrink: 0;
   border-right: 1px solid var(--line);
@@ -407,13 +407,13 @@ form {
   .layout {
     flex-direction: column;
   }
-  aside {
+  #sidebar {
     width: 100%;
     border-right: 0;
     border-bottom: 1px solid var(--line);
     padding: 16px 20px;
   }
-  aside #nav {
+  #sidebar #nav {
     display: flex;
     overflow-x: auto;
     margin-top: 13px;
@@ -422,7 +422,7 @@ form {
   #nav button {
     white-space: nowrap;
   }
-  aside .small {
+  #sidebar .small {
     display: none;
   }
   main {
@@ -570,12 +570,7 @@ html.auth-check #landing {
   padding: 72px 0 56px;
   background:
     radial-gradient(900px 420px at 85% 0%, var(--glow), transparent 70%),
-    linear-gradient(
-      115deg,
-      transparent 58%,
-      rgba(79, 215, 255, 0.07) 58.3%,
-      transparent 66%
-    ),
+    linear-gradient(115deg, transparent 58%, rgba(79, 215, 255, 0.07) 58.3%, transparent 66%),
     var(--bg-deep);
   border-bottom: 1px solid var(--line);
 }
@@ -734,43 +729,14 @@ html.auth-check #landing {
   position: absolute;
   border-radius: 18px;
   border: 1px solid rgba(79, 215, 255, 0.45);
-  background: linear-gradient(
-    145deg,
-    rgba(22, 104, 223, 0.55),
-    rgba(8, 24, 52, 0.85)
-  );
+  background: linear-gradient(145deg, rgba(22, 104, 223, 0.55), rgba(8, 24, 52, 0.85));
   box-shadow: 0 0 40px rgba(22, 104, 223, 0.35);
   transform: rotate(45deg) skew(-8deg, -8deg);
 }
-.lp-art .t1 {
-  width: 190px;
-  height: 190px;
-  left: 70px;
-  top: 70px;
-}
-.lp-art .t2 {
-  width: 120px;
-  height: 120px;
-  left: 105px;
-  top: 20px;
-  background: linear-gradient(
-    145deg,
-    rgba(79, 215, 255, 0.6),
-    rgba(22, 104, 223, 0.5)
-  );
-}
-.lp-art .t3 {
-  width: 48px;
-  height: 48px;
-  left: 10px;
-  top: 190px;
-}
-.lp-art .t4 {
-  width: 40px;
-  height: 40px;
-  left: 300px;
-  top: 210px;
-}
+.lp-art .t1 { width: 190px; height: 190px; left: 70px; top: 70px; }
+.lp-art .t2 { width: 120px; height: 120px; left: 105px; top: 20px; background: linear-gradient(145deg, rgba(79, 215, 255, 0.6), rgba(22, 104, 223, 0.5)); }
+.lp-art .t3 { width: 48px; height: 48px; left: 10px; top: 190px; }
+.lp-art .t4 { width: 40px; height: 40px; left: 300px; top: 210px; }
 .lp-outline {
   border-color: var(--cyan);
   color: var(--cyan);
@@ -813,6 +779,8 @@ main.page {
   top: 24px;
   display: block;
   margin: 0;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
 }
 .toc ul {
   list-style: none;
@@ -943,5 +911,81 @@ main.page {
   }
   .sitenav .icon {
     display: none;
+  }
+}
+
+/* ---- Legal documents ---- */
+.legal-meta {
+  display: flex;
+  gap: 12px 36px;
+  flex-wrap: wrap;
+  margin: 18px 0 0;
+}
+.legal-meta div {
+  display: grid;
+  gap: 2px;
+}
+.legal-meta dt {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.legal-meta dd {
+  margin: 0;
+}
+.legal-notice {
+  max-width: 900px;
+  margin: 22px 0 30px;
+  padding: 14px 18px;
+  border: 1px solid #6b5a1e;
+  border-radius: 12px;
+  background: #221d0d;
+  color: #f1e4b0;
+}
+mark.todo {
+  background: #3b3210;
+  color: #ffe08a;
+  border: 1px dashed #a88a22;
+  border-radius: 4px;
+  padding: 0 5px;
+}
+.clause {
+  display: grid;
+  grid-template-columns: 3.4em minmax(0, 1fr);
+  gap: 0 6px;
+  margin: 12px 0;
+}
+.clause .num {
+  color: var(--cyan);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding-top: 1px;
+}
+.clause p {
+  margin: 0 0 6px;
+}
+.clause ul,
+.clause ol {
+  margin: 4px 0 6px;
+}
+.table-wrap {
+  overflow-x: auto;
+  margin: 8px 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.table-wrap table {
+  margin: 0;
+  min-width: 560px;
+}
+.table-wrap th,
+.table-wrap td {
+  vertical-align: top;
+}
+@media (max-width: 760px) {
+  .clause {
+    grid-template-columns: 2.8em minmax(0, 1fr);
   }
 }
