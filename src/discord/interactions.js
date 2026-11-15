@@ -86,14 +86,18 @@ export async function interactionRoute(request, env, ctx) {
   if (i.type === 2 && i.data.name === "help")
     return json(await handleCommand(i, env));
   assert(i.guild_id && i.member?.user?.id, 400, "guild_only");
-  if (i.type === 3) {
+  if (i.type === 3 || i.type === 5) {
     try {
       let timer;
       let immediate;
       try {
+        // Submitting an application must not be abandoned half-way by a timer:
+        // the write either completes or fails and the applicant is told which.
+        const submitting = String(i.data?.custom_id).startsWith("asubmit:");
         immediate = await Promise.race([
           immediateComponent(i, env),
           new Promise((_, reject) => {
+            if (submitting) return;
             timer = setTimeout(
               () =>
                 reject(

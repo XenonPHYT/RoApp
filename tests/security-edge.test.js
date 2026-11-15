@@ -77,25 +77,55 @@ test("signed button opens modal, modal submits, commands defer quickly and dupli
     type: 3,
     data: { custom_id: `forms:${user}`, values: [f.id] },
   };
-  const opened = await (
+  const intro = await (
     await interactionRoute(await sign(choice, keys), env, ctx)
+  ).json();
+  assert.equal(intro.type, 7, JSON.stringify(intro));
+  const start = intro.data.components[0].components[0];
+  const opened = await (
+    await interactionRoute(
+      await sign(
+        {
+          ...base,
+          id: "500000000000000002",
+          type: 3,
+          data: { custom_id: start.custom_id },
+        },
+        keys,
+      ),
+      env,
+      ctx,
+    )
   ).json();
   assert.equal(opened.type, 9);
   const submitted = {
     ...base,
-    id: "500000000000000002",
+    id: "500000000000000003",
     type: 5,
     data: {
       custom_id: opened.data.custom_id,
-      components: [
-        { components: [{ custom_id: "a", value: "Test submission" }] },
-      ],
+      components: [{ component: { custom_id: "a", value: "Test submission" } }],
     },
   };
   const ack = await (
     await interactionRoute(await sign(submitted, keys), env, ctx)
   ).json();
-  assert.deepEqual(ack, { type: 5, data: { flags: 64 } });
+  assert.equal(ack.type, 7);
+  const submit = ack.data.components[0].components.find((c) =>
+    c.custom_id.startsWith("asubmit:"),
+  );
+  assert.ok(submit);
+  const final = {
+    ...base,
+    id: "500000000000000004",
+    type: 3,
+    data: { custom_id: submit.custom_id },
+  };
+  const completed = await (
+    await interactionRoute(await sign(final, keys), env, ctx)
+  ).json();
+  assert.equal(completed.type, 7);
+  assert.equal(completed.data.embeds[0].title, "Application Submitted!");
   await Promise.all(works);
   assert.equal(
     (
@@ -107,14 +137,13 @@ test("signed button opens modal, modal submits, commands defer quickly and dupli
     ).n,
     1,
   );
-  assert.match(edits[0].content, /Application submitted/);
   const replay = await (
-    await interactionRoute(await sign(submitted, keys), env, ctx)
+    await interactionRoute(await sign(final, keys), env, ctx)
   ).json();
   assert.match(replay.data.content, /already been handled/);
   const command = {
     ...base,
-    id: "500000000000000003",
+    id: "500000000000000005",
     type: 2,
     data: { name: "myapplications" },
   };

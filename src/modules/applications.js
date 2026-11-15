@@ -2,7 +2,7 @@ import { one, all, run, rateLimit, changed } from "../database/db.js";
 import { applicationRecord } from "../database/queries.js";
 import { publishedForm } from "./forms.js";
 import { answers } from "../utils/validation.js";
-import { assert, now, uid } from "../utils/helpers.js";
+import { assert, now, uid, epoch } from "../utils/helpers.js";
 export const TERMINAL = ["approved", "rejected", "withdrawn"];
 export function reference() {
   return `APP-${new Date().getUTCFullYear()}-${uid().slice(0, 16).toUpperCase()}`;
@@ -65,6 +65,33 @@ export async function submitApplication(
     roblox ? value[roblox.id] : null,
   );
   return applicantView(await applicationRecord(env, guild, id));
+}
+// Mirrors the atomic submission_guard trigger so applicants get a clear reason
+// before they spend time on a form. The trigger remains the enforcing gate.
+export async function submissionBlock(env, guild, user, formId) {
+  const f = await one(
+    env,
+    "SELECT cooldown_seconds,allow_duplicates FROM forms WHERE guild_id=? AND id=?",
+    guild,
+    formId,
+  );
+  if (!f) return null;
+  const rows = await all(
+    env,
+    "SELECT status,created_at FROM applications WHERE guild_id=? AND form_id=? AND applicant_id=? ORDER BY created_at DESC LIMIT 50",
+    guild,
+    formId,
+    user,
+  );
+  if (!f.allow_duplicates && rows.some((a) => !TERMINAL.includes(a.status)))
+    return { kind: "active" };
+  if (rows[0] && f.cooldown_seconds) {
+    const until = Math.ceil(
+      Date.parse(rows[0].created_at) / 1000 + f.cooldown_seconds,
+    );
+    if (until > epoch()) return { kind: "cooldown", until };
+  }
+  return null;
 }
 export async function ownApplication(env, guild, user, id) {
   const a = await applicationRecord(env, guild, id);

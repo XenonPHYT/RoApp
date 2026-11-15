@@ -1,10 +1,10 @@
 import { reviewImmediate, reviewComponent } from "./review-ui.js";
 import { assert } from "../utils/helpers.js";
-import { publishedForm, supportsModal } from "../modules/forms.js";
 import { submitApplication, withdraw } from "../modules/applications.js";
-import { panelForm, removePanel } from "../modules/panels.js";
+import { removePanel } from "../modules/panels.js";
 import { authorize } from "../modules/permissions.js";
-import { message, modal, row, link } from "./responses.js";
+import { message } from "./responses.js";
+import { applyComponent, applyModal } from "./apply-flow.js";
 export function parseCustomId(value) {
   assert(
     typeof value === "string" && value.length <= 100,
@@ -20,49 +20,12 @@ export function parseCustomId(value) {
   return parts;
 }
 export async function immediateComponent(i, env) {
-  if (i.type !== 3) return null;
-  const [kind, actor, ...rest] = parseCustomId(i.data.custom_id);
-  const user = i.member?.user?.id;
-  const review = await reviewImmediate(i, env, [kind, actor, ...rest]);
+  if (i.type !== 3 && i.type !== 5) return null;
+  const parts = parseCustomId(i.data.custom_id);
+  if (i.type === 5) return applyModal(i, env, parts);
+  const review = await reviewImmediate(i, env, parts);
   if (review) return review;
-  let formId;
-  if (kind === "panel") {
-    assert(i.data.values?.length === 1, 400, "invalid_selection");
-    formId = await panelForm(env, i.guild_id, actor, i.data.values[0]);
-  } else if (kind === "forms") {
-    assert(
-      actor === user && i.data.values?.length === 1,
-      403,
-      "component_owner",
-    );
-    formId = i.data.values[0];
-  } else return null;
-  const f = await publishedForm(env, i.guild_id, formId);
-  if (!supportsModal(f.definition))
-    return message(
-      "Complete this form securely on the RoApp applicant portal.",
-      {
-        components: [
-          row(
-            link(
-              "Open application",
-              env.APP_ORIGIN + `/?apply=${i.guild_id}.${formId}`,
-            ),
-          ),
-        ],
-      },
-    );
-  return modal(
-    `submit:${user}:${formId}:${f.version}`,
-    f.definition.title,
-    f.definition.questions.map((q) => ({
-      id: q.id,
-      label: q.label,
-      long: q.type === "long_text",
-      required: q.required,
-      max: q.max_length,
-    })),
-  );
+  return applyComponent(i, env, parts);
 }
 export async function handleComponent(i, env) {
   const [kind, actor, target, version] = parseCustomId(i.data.custom_id),

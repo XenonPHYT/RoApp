@@ -112,6 +112,40 @@ export async function checkCsrf(request, env, s) {
     "csrf_failed",
   );
 }
+// Idle window (SESSION_HOURS, default 8, max 24) slides forward while the dashboard is
+// used; the absolute limit (SESSION_MAX_DAYS, default and max 7, fractions allowed) is
+// measured from sign-in.
+export function sessionPolicy(env) {
+  return {
+    idle: Math.floor(
+      Math.min(24, Math.max(1, Number(env.SESSION_HOURS) || 8)) * 3600,
+    ),
+    absolute: Math.floor(
+      Math.min(7, Math.max(1 / 24, Number(env.SESSION_MAX_DAYS) || 7)) * 86400,
+    ),
+  };
+}
+export const hasSessionCookie = (request, env) =>
+  Boolean(cookies(request)[cookieName(env)]);
+export const clearSessionCookie = (env) => cookie(env, "", "session", 0);
+// Extends a still-valid session while it is in use. Returns a refreshed Set-Cookie
+// value, or null when nothing changed. Never extends past the absolute limit.
+export async function refreshSession(request, env, s) {
+  const { idle, absolute } = sessionPolicy(env),
+    t = epoch(),
+    next = Math.min(t + idle, s.created_at + absolute);
+  if (s.expires_at - t >= idle / 2 || next - s.expires_at < 60) return null;
+  const r = await run(
+    env,
+    "UPDATE dashboard_sessions SET expires_at=? WHERE id_hash=? AND expires_at<?",
+    next,
+    s.id_hash,
+    next,
+  );
+  if (!r.meta.changes) return null;
+  s.expires_at = next;
+  return cookie(env, cookies(request)[cookieName(env)], "session", next - t);
+}
 export async function createSession(env, user, token, expiresIn) {
   assert(
     user?.id && Number.isFinite(expiresIn) && expiresIn > 0,
@@ -120,14 +154,7 @@ export async function createSession(env, user, token, expiresIn) {
   );
   const sid = uid() + uid(),
     csrf = uid() + uid(),
-    ttl = Math.max(
-      1,
-      Math.min(
-        8 * 3600,
-        Math.max(1, Number(env.SESSION_HOURS) || 8) * 3600,
-        expiresIn,
-      ),
-    );
+    ttl = Math.max(1, Math.min(sessionPolicy(env).idle, expiresIn));
   const expires = epoch() + Math.floor(ttl);
   await run(
     env,
@@ -143,26 +170,43 @@ export async function createSession(env, user, token, expiresIn) {
   );
   return { sid, csrf, ttl, expires };
 }
+function rejectState(reason) {
+  // Category only: never log the state value, cookie value or any token.
+  console.warn("RoApp OAuth state rejected", { reason });
+  throw new AppError(400, "oauth_state_invalid");
+}
 export async function consumeState(env, state, cookieState) {
-  assert(
-    /^[a-f0-9]{64}$/.test(state || "") && equal(state, cookieState),
-    400,
-    "oauth_state_invalid",
-  );
+  if (!/^[a-f0-9]{64}$/.test(state || "")) rejectState("state_malformed");
+  if (!cookieState) rejectState("cookie_missing");
+  if (!equal(state, cookieState)) rejectState("cookie_mismatch");
   const s = await one(
     env,
     "DELETE FROM oauth_states WHERE state_hash=? AND expires_at>? RETURNING state_hash",
     await digest(state),
     epoch(),
   );
-  assert(s, 400, "oauth_state_invalid");
+  if (!s) rejectState("state_unknown_expired_or_used");
 }
+const redirect = (location) =>
+  new Response(null, {
+    status: 302,
+    headers: { Location: location, "Cache-Control": "no-store" },
+  });
 export async function authRoute(request, env) {
   const url = new URL(request.url),
     origin = appOrigin(env);
   assert(url.origin === origin, 400, "wrong_origin");
   if (url.pathname === "/auth/discord" && request.method === "GET") {
     await encryptionKey(env);
+    // Already signed in: open the dashboard instead of another Discord round trip.
+    if (!url.searchParams.has("reauth")) {
+      try {
+        await session(request, env);
+        return redirect("/");
+      } catch (e) {
+        if (!(e instanceof AppError) || e.status !== 401) throw e;
+      }
+    }
     await rateLimit(
       env,
       "oauth:" +
@@ -176,6 +220,13 @@ export async function authRoute(request, env) {
       "oauth_not_configured",
     );
     const state = uid() + uid();
+    // Returning users (a prior successful sign-in left a hint cookie) skip Discord's
+    // authorization screen with prompt=none; the callback falls back to the normal
+    // screen once if Discord refuses.
+    const quick =
+      cookies(request)[cookieName(env, "seen")] === "1" &&
+      !url.searchParams.has("consent") &&
+      !url.searchParams.has("reauth");
     await run(
       env,
       "INSERT INTO oauth_states(state_hash,expires_at) VALUES(?,?)",
@@ -189,28 +240,63 @@ export async function authRoute(request, env) {
       redirect_uri: origin + "/auth/discord/callback",
       scope: "identify guilds",
       state,
+      ...(quick ? { prompt: "none" } : {}),
     }).toString();
+    // One cookie per attempt, so a second tab or a retry cannot overwrite it.
     return new Response(null, {
       status: 302,
       headers: {
         Location: target.toString(),
-        "Set-Cookie": cookie(env, state, "oauth", 600),
+        "Set-Cookie": cookie(
+          env,
+          quick ? state + ".n" : state,
+          `oauth_${state.slice(0, 16)}`,
+          600,
+        ),
         "Cache-Control": "no-store",
       },
     });
   }
   if (url.pathname === "/auth/discord/callback" && request.method === "GET") {
-    await consumeState(
-      env,
-      url.searchParams.get("state"),
-      cookies(request)[cookieName(env, "oauth")],
-    );
-    assert(
-      !url.searchParams.has("error") && url.searchParams.get("code"),
-      400,
-      "oauth_denied",
-      "Discord login was cancelled or denied.",
-    );
+    const state = url.searchParams.get("state") || "",
+      jar = cookies(request),
+      key = /^[a-f0-9]{64}$/.test(state) ? `oauth_${state.slice(0, 16)}` : "oauth";
+    // The per-attempt cookie is preferred; the original single cookie name is still
+    // accepted so sign-ins started before this version keep working.
+    const [cookieState, mode] = (
+      jar[cookieName(env, key)] ??
+      jar[cookieName(env, "oauth")] ??
+      ""
+    ).split(".");
+    const clear = new Set([key, "oauth"]);
+    const back = (location) => {
+      const h = new Headers({ Location: location, "Cache-Control": "no-store" });
+      for (const k of clear) h.append("Set-Cookie", cookie(env, "", k, 0));
+      return new Response(null, { status: 302, headers: h });
+    };
+    try {
+      await consumeState(env, state, cookieState);
+    } catch (e) {
+      if (!(e instanceof AppError) || e.code !== "oauth_state_invalid") throw e;
+      // Still a rejection: no token exchange, no session. Someone who is already
+      // signed in (back button, reloaded callback) simply lands on the dashboard;
+      // everyone else gets a recoverable message instead of a raw JSON page. Other
+      // attempts' cookies are left alone so a newer in-flight sign-in still works.
+      try {
+        await session(request, env);
+        return redirect("/");
+      } catch (err) {
+        if (!(err instanceof AppError) || err.status !== 401) throw err;
+      }
+      return redirect("/?auth_error=oauth_state_invalid");
+    }
+    if (url.searchParams.has("error") || !url.searchParams.get("code")) {
+      // A refused prompt=none attempt is retried once with the normal screen; a
+      // refusal there (the person pressed Cancel) is final, so this cannot loop.
+      return back(
+        mode === "n" ? "/auth/discord?consent=1" : "/?auth_error=oauth_denied",
+      );
+    }
     const form = new URLSearchParams({
       client_id: env.DISCORD_CLIENT_ID,
       client_secret: env.DISCORD_CLIENT_SECRET,
@@ -237,6 +323,15 @@ export async function authRoute(request, env) {
       502,
       "invalid_oauth_response",
     );
+    if (typeof token.scope === "string") {
+      const granted = token.scope.split(/[\s,]+/);
+      assert(
+        granted.includes("identify") && granted.includes("guilds"),
+        403,
+        "oauth_scope_missing",
+        "Discord did not grant the required permissions. Sign in again and approve all requested access.",
+      );
+    }
     const user = await discord(env, "/users/@me", {
       token: token.access_token,
     });
@@ -246,9 +341,18 @@ export async function authRoute(request, env) {
       token.access_token,
       Number(token.expires_in),
     );
+    // Replace any previous session of this browser instead of leaving it behind.
+    const oldSid = jar[cookieName(env)];
+    if (/^[a-f0-9]{64}$/.test(oldSid || ""))
+      await run(
+        env,
+        "DELETE FROM dashboard_sessions WHERE id_hash=?",
+        await digest(oldSid),
+      );
     const headers = new Headers({ Location: "/", "Cache-Control": "no-store" });
     headers.append("Set-Cookie", cookie(env, s.sid, "session", s.ttl));
-    headers.append("Set-Cookie", cookie(env, "", "oauth", 0));
+    for (const k of clear) headers.append("Set-Cookie", cookie(env, "", k, 0));
+    headers.append("Set-Cookie", cookie(env, "1", "seen", 15552000));
     return new Response(null, { status: 302, headers });
   }
   throw new AppError(404, "not_found");
@@ -256,9 +360,12 @@ export async function authRoute(request, env) {
 export async function logout(request, env, s) {
   await checkCsrf(request, env, s);
   await run(env, "DELETE FROM dashboard_sessions WHERE id_hash=?", s.id_hash);
-  return json({ ok: true }, 200, {
-    "Set-Cookie": cookie(env, "", "session", 0),
-  });
+  // Also forget the "signed in before" hint so the next sign-in shows Discord's
+  // screen again (allows switching accounts on a shared device).
+  const r = json({ ok: true });
+  r.headers.append("Set-Cookie", cookie(env, "", "session", 0));
+  r.headers.append("Set-Cookie", cookie(env, "", "seen", 0));
+  return r;
 }
 export function publicSession(s) {
   return {

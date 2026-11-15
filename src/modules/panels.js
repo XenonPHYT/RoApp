@@ -117,8 +117,14 @@ export async function panelMessage(env, guild, panel) {
             `panel:${panel.id}`,
             items
               .filter((f) => f.status === "open")
-              .map((f) => ({ label: f.title.slice(0, 100), value: f.id })),
-            "Choose an application",
+              .map((f) => ({
+                label: f.title.slice(0, 100),
+                value: f.id,
+                ...(f.description
+                  ? { description: f.description.slice(0, 100) }
+                  : {}),
+              })),
+            "Select an application…",
           ),
         ]
       : [],

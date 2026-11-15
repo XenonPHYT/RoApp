@@ -184,9 +184,9 @@ test("community setup lists only unregistered owner guilds with bot access and v
   env.FETCH = async (url) => {
     if (url.includes("/users/@me/guilds"))
       return Response.json([
-        { id: A, owner: true },
+        { id: A, owner: true, name: "A" },
         { id: B, owner: false },
-        { id: C, owner: true },
+        { id: C, owner: true, name: "New community" },
         { id: D, owner: true },
       ]);
     if (url.includes(`/guilds/${D}`))
@@ -200,6 +200,7 @@ test("community setup lists only unregistered owner guilds with bot access and v
 
   assert.deepEqual(await (await call("/api/setup/candidates")).json(), [
     { guild_id: C, name: "New community" },
+    { guild_id: D, name: D },
   ]);
   assert.equal(
     (await call("/api/guild/setup", "POST", { guild_id: C })).status,
@@ -225,7 +226,12 @@ test("community setup lists only unregistered owner guilds with bot access and v
   );
   assert.equal(
     (await call("/api/guild/setup", "POST", { guild_id: D })).status,
-    404,
+    409,
+  );
+  assert.equal(
+    (await (await call("/api/guild/setup", "POST", { guild_id: D })).json())
+      .error,
+    "bot_not_installed",
   );
   assert.equal(
     (
