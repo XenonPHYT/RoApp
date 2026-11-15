@@ -25,6 +25,7 @@ export default [
           "structuredClone",
           "document",
           "location",
+          "history",
           "sessionStorage",
           "Node",
           "confirm",

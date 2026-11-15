@@ -177,6 +177,68 @@ test("CSRF, missing sessions, forged guild selections, role removal and regular-
     );
   assert.equal((await f.call("/api/manage/overview")).status, 403);
 });
+test("community setup lists only unregistered owner guilds with bot access and validates setup", async () => {
+  const { env, call } = await fixture();
+  const C = "100000000000000003",
+    D = "100000000000000004";
+  env.FETCH = async (url) => {
+    if (url.includes("/users/@me/guilds"))
+      return Response.json([
+        { id: A, owner: true },
+        { id: B, owner: false },
+        { id: C, owner: true },
+        { id: D, owner: true },
+      ]);
+    if (url.includes(`/guilds/${D}`))
+      return new Response(null, { status: 404 });
+    if (url.includes(`/guilds/${C}/members/`))
+      return Response.json({ user: { id: owner }, roles: [] });
+    if (url.endsWith(`/guilds/${C}`))
+      return Response.json({ id: C, name: "New community", owner_id: owner });
+    throw new Error("Unexpected Discord request");
+  };
+
+  assert.deepEqual(await (await call("/api/setup/candidates")).json(), [
+    { guild_id: C, name: "New community" },
+  ]);
+  assert.equal(
+    (await call("/api/guild/setup", "POST", { guild_id: C })).status,
+    200,
+  );
+  assert.equal(
+    (
+      await env.DB.prepare("SELECT name,owner_id FROM guilds WHERE guild_id=?")
+        .bind(C)
+        .first()
+    ).name,
+    "New community",
+  );
+  assert.equal(
+    (
+      await env.DB.prepare(
+        "SELECT action FROM audit_logs WHERE guild_id=? ORDER BY id DESC LIMIT 1",
+      )
+        .bind(C)
+        .first()
+    ).action,
+    "guild.setup",
+  );
+  assert.equal(
+    (await call("/api/guild/setup", "POST", { guild_id: D })).status,
+    404,
+  );
+  assert.equal(
+    (
+      await call(
+        "/api/guild/setup",
+        "POST",
+        { guild_id: C },
+        { "X-CSRF-Token": "invalid" },
+      )
+    ).status,
+    403,
+  );
+});
 test("settings and role policies are scoped, validated, and audited", async () => {
   const { call } = await fixture();
   await call("/api/guild/select", "POST", { guild_id: A });

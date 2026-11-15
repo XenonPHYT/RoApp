@@ -8,6 +8,7 @@ const state = {
 };
 const main = $("#main");
 function mount(...nodes) {
+  main.classList.remove("landing-main");
   main.replaceChildren(
     ...nodes.flat(Infinity).filter((n) => n !== null && n !== undefined),
   );
@@ -152,9 +153,53 @@ async function api(path, method = "GET", body) {
   if (!res.ok) {
     const err = new Error(data.message || data.error || "Request failed");
     err.status = res.status;
+    err.code = data.error;
+    // The server ended this session (expired, signed out elsewhere, token revoked).
+    if (res.status === 401 && state.session && path !== "/api/logout")
+      sessionEnded();
     throw err;
   }
   return data;
+}
+// The nav "Dashboard" link opens the dashboard when signed in and starts the single
+// Discord sign-in otherwise (the server sends signed-in visitors straight back to /).
+function setDashboardLink(signedIn) {
+  const link = document.querySelector('[data-nav="dashboard"]');
+  if (!link) return;
+  link.setAttribute("href", signedIn ? "/" : "/auth/discord");
+  if (signedIn) link.setAttribute("aria-current", "page");
+  else link.removeAttribute("aria-current");
+}
+function sessionEnded() {
+  if (!state.session) return;
+  setDashboardLink(false);
+  state.session = null;
+  $("#sidebar").hidden = true;
+  $("#account").replaceChildren(
+    el(
+      "a",
+      { class: "button primary", href: "/auth/discord" },
+      "Sign in with Discord",
+    ),
+  );
+  notify("Your session expired. Sign in again to continue.", true);
+  mount(
+    card(
+      el("h2", {}, "Your session has expired"),
+      el(
+        "p",
+        {},
+        "For your security you were signed out. Sign in again to continue where you left off.",
+      ),
+      actions(
+        el(
+          "a",
+          { class: "button primary", href: "/auth/discord" },
+          "Sign in again",
+        ),
+      ),
+    ),
+  );
 }
 const manage = (path, method = "GET", body) =>
   api("/api/manage/" + path, method, body);
@@ -1408,26 +1453,103 @@ async function ownDetail(guild, id) {
     revisions,
   );
 }
+const AUTH_ERRORS = {
+  oauth_denied:
+    "Discord sign-in was cancelled. You can try again whenever you are ready.",
+  oauth_state_invalid:
+    "Sign-in could not be verified (the login session was missing, expired or already used). Start sign-in again from this same browser.",
+};
+async function showSetup() {
+  state.tab = "setup";
+  mount(el("p", { class: "loading" }, "Loading…"));
+  const list = await api("/api/setup/candidates");
+  const picker = choose(
+    list.map((g) => ({ value: g.guild_id, label: g.name })),
+    list[0]?.guild_id || "",
+  );
+  mount(
+    heading(
+      "Set up a community",
+      "Register a Discord server with RoApp. Only the server owner can do this, and RoApp must already be installed in that server.",
+    ),
+    list.length
+      ? card(
+          field("Server you own", picker),
+          actions(
+            btn(
+              "Set up this community",
+              async () => {
+                await api("/api/guild/setup", "POST", {
+                  guild_id: picker.value,
+                });
+                sessionStorage.removeItem("roapp-intent");
+                location.assign("/");
+              },
+              "primary",
+            ),
+          ),
+        )
+      : empty(
+          "No unregistered servers that you own were found. Install RoApp in your server first, then come back here.",
+        ),
+  );
+}
 async function initialize() {
+  const authError = new URLSearchParams(location.search).get("auth_error");
+  if (authError) {
+    history.replaceState(null, "", location.pathname);
+    notify(AUTH_ERRORS[authError] || "Sign-in failed. Please try again.", true);
+  }
   const intent =
     location.search || sessionStorage.getItem("roapp-intent") || "";
   if (intent) sessionStorage.setItem("roapp-intent", intent);
   try {
     state.session = await api("/api/session");
   } catch (e) {
-    if (e.status === 401) return;
+    if (e.status === 401) {
+      if (e.code === "session_expired")
+        notify("Your session expired. Sign in again.", true);
+      return;
+    }
     throw e;
   }
+  setDashboardLink(true);
   $("#account").replaceChildren(
     el("span", { class: "username" }, state.session.user.username),
     btn("Sign out", async () => {
-      await api("/api/logout", "POST", {});
+      try {
+        await api("/api/logout", "POST", {});
+      } catch (e) {
+        // Already signed out on the server: nothing left to end.
+        if (e.status !== 401) throw e;
+      }
       sessionStorage.clear();
       location.assign("/");
     }),
   );
+  // Coming back to a tab that was left open: confirm (and extend) the session, or
+  // show the sign-in prompt right away instead of failing on the next click.
+  let lastCheck = Date.now();
+  document.addEventListener("visibilitychange", async () => {
+    if (
+      document.visibilityState !== "visible" ||
+      !state.session ||
+      Date.now() - lastCheck < 300000
+    )
+      return;
+    lastCheck = Date.now();
+    try {
+      state.session.expires_at = (await api("/api/session")).expires_at;
+    } catch {
+      // A 401 is handled by api(); other errors are retried on the next visit.
+    }
+  });
   state.guilds = await api("/api/guilds");
   $("#sidebar").hidden = false;
+  $("#setup-open").addEventListener(
+    "click",
+    task(() => showSetup()),
+  );
   const picker = $("#community");
   for (const g of state.guilds.filter((g) => g.dashboard))
     picker.append(el("option", { value: g.guild_id }, g.name));
@@ -1464,15 +1586,29 @@ async function initialize() {
       await api("/api/guild/select", "POST", { guild_id: selected.guild_id });
     await loadContext();
     await showTab("overview");
-  } else await showApplicant(state.guilds[0]?.guild_id);
+  } else if (!state.guilds.length) {
+    notify(
+      "No registered community includes your Discord account yet. If you own the server, set it up below; otherwise ask the owner.",
+      true,
+    );
+    await showSetup();
+  } else {
+    notify(
+      "You do not have dashboard access in any community. Ask the server owner to grant one of your roles dashboard access.",
+      true,
+    );
+    await showApplicant(state.guilds[0]?.guild_id);
+  }
 }
-initialize().catch((e) => {
-  notify(e.message, true);
-  mount(
-    heading("Connection unavailable"),
-    empty(
-      "RoApp could not confirm your current access. No protected data was loaded.",
-    ),
-    btn("Try again", () => location.reload()),
-  );
-});
+initialize()
+  .catch((e) => {
+    notify(e.message, true);
+    mount(
+      heading("Connection unavailable"),
+      empty(
+        "RoApp could not confirm your current access. No protected data was loaded.",
+      ),
+      btn("Try again", () => location.reload()),
+    );
+  })
+  .finally(() => document.documentElement.classList.remove("auth-check"));

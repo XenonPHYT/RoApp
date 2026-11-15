@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#060b17" />
+    <meta
+      name="description"
+      content="How to set up RoApp, build application forms, apply in Discord and review applications."
+    />
+    <title>Documentation — RoApp</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <script src="/js/site.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="RoApp home"
+        >Ro<span>App</span><small>DASHBOARD</small></a
+      >
+      <nav class="sitenav" aria-label="Main">
+        <a href="/auth/discord" data-nav="dashboard"
+          ><svg
+            class="icon"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" /></svg
+          ><span>Dashboard</span></a
+        >
+        <a href="/docs/" aria-current="page"
+          ><svg
+            class="icon"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6" /></svg
+          ><span>Documentation</span></a
+        >
+        <a href="/support/"
+          ><svg
+            class="icon"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path
+              d="M4 14v-2a8 8 0 0116 0v2M4 14h3v5H5a1 1 0 01-1-1zM20 14h-3v5h2a1 1 0 001-1zM17 19c0 1.5-2 2-5 2"
+            /></svg
+          ><span>Support</span></a
+        >
+      </nav>
+      <div id="account">
+        <a class="button primary" href="/auth/discord">Sign in with Discord</a>
+      </div>
+    </header>
+    <main id="main" class="page" tabindex="-1">
+      <header class="page-head">
+        <p class="eyebrow">DOCUMENTATION</p>
+        <h1>RoApp <span>Documentation</span></h1>
+        <p class="lead">Guides for community owners, staff and applicants.</p>
+      </header>
+      <div class="page-body with-toc">
+        <nav class="toc" aria-label="On this page">
+          <p class="eyebrow">ON THIS PAGE</p>
+          <ul>
+            <li><a href="#overview">What RoApp does</a></li>
+            <li><a href="#getting-started">Getting started</a></li>
+            <li><a href="#forms">Forms</a></li>
+            <li><a href="#applicants">Applying in Discord</a></li>
+            <li><a href="#review">Reviewing applications</a></li>
+            <li><a href="#access">Access and permissions</a></li>
+            <li><a href="#commands">Slash commands</a></li>
+            <li><a href="#signing-in">Signing in</a></li>
+          </ul>
+        </nav>
+        <article class="prose">
+          <section id="overview">
+            <h2>What RoApp does</h2>
+            <p>
+              RoApp lets a Discord community run its applications. Staff build
+              forms in the dashboard, applicants answer them inside Discord, and
+              reviewers decide in a private workspace. Every community is
+              managed separately.
+            </p>
+          </section>
+          <section id="getting-started">
+            <h2>Getting started (community owners)</h2>
+            <ol>
+              <li>
+                Add RoApp to your Discord server using the invite link from
+                whoever operates this RoApp deployment.
+              </li>
+              <li>
+                Select <strong>Sign in with Discord</strong> at the top of this
+                page and approve access to your Discord identity and server
+                list.
+              </li>
+              <li>
+                Register your community. Either run <code>/setup</code> in your
+                server or use <strong>Set up a community</strong> in the
+                dashboard. Only the current server owner can do this, and
+                Administrator permission is not enough.
+              </li>
+              <li>
+                Open <strong>Form builder</strong>, create a form and publish
+                it.
+              </li>
+              <li>
+                Open <strong>Public panels</strong> (or run <code>/panel</code>)
+                and publish a panel in the channel where people should apply.
+              </li>
+              <li>
+                Review submissions in <strong>Applications</strong> or with
+                <code>/review</code>.
+              </li>
+            </ol>
+          </section>
+          <section id="forms">
+            <h2>Forms</h2>
+            <p>
+              The dashboard Form builder is the source of truth for what
+              applicants see in Discord. A form has a title, description,
+              instructions, requirements and 1–30 questions kept in the order
+              you set.
+            </p>
+            <h3>Question types</h3>
+            <ul>
+              <li>
+                <strong>Short text</strong> and <strong>Long text</strong>, with
+                a character limit.
+              </li>
+              <li>
+                <strong>Multiple choice</strong>, <strong>Dropdown</strong> and
+                <strong>Checkbox</strong>, with up to 25 choices.
+              </li>
+              <li><strong>Yes / No</strong>.</li>
+              <li>
+                <strong>Number</strong>, with optional minimum and maximum.
+              </li>
+              <li><strong>Date</strong>, entered as YYYY-MM-DD.</li>
+              <li>
+                <strong>Roblox username</strong>, checked for a valid format and
+                looked up on Roblox. This confirms the account exists; it does
+                not prove the applicant owns it.
+              </li>
+            </ul>
+            <h3>Publishing and rules</h3>
+            <p>
+              Publishing creates a versioned form that applicants use; editing a
+              draft never changes applications already submitted. Each form can
+              set a cooldown between submissions and whether one person may have
+              several active applications. Closing a form stops new submissions.
+            </p>
+          </section>
+          <section id="applicants">
+            <h2>Applying in Discord</h2>
+            <ol>
+              <li>
+                Choose an application from the community’s panel or with
+                <code>/apply</code>.
+              </li>
+              <li>
+                Read the description, instructions and requirements, then select
+                <strong>Start Application</strong>.
+              </li>
+              <li>
+                Answer the questions. Longer forms are split into steps of up to
+                five questions, and your answers are kept as you go.
+              </li>
+              <li>
+                Review your answers, edit any step if needed, and select
+                <strong>Submit Application</strong>.
+              </li>
+            </ol>
+            <p>
+              Unfinished answers are kept for 24 hours so you can resume. Use
+              <code>/myapplications</code> or
+              <strong>My applications</strong> in the dashboard to follow
+              progress, and <code>/application withdraw</code> to withdraw an
+              application.
+            </p>
+            <h3>Statuses</h3>
+            <p>
+              Pending, under review, interview, revision requested, approved,
+              rejected and withdrawn. When a status changes you are sent a
+              private Discord message if your settings allow it; the status in
+              My applications is always the authoritative record.
+            </p>
+          </section>
+          <section id="review">
+            <h2>Reviewing applications</h2>
+            <ul>
+              <li>
+                Work through the queue in <strong>Applications</strong> or with
+                <code>/review</code>.
+              </li>
+              <li>Assign reviewers to an application.</li>
+              <li>
+                Add internal notes. Notes are private to staff and are never
+                shown to applicants.
+              </li>
+              <li>
+                Approve, reject or request a revision. A reason is required, and
+                the applicant sees only that public reason.
+              </li>
+              <li>Every change is recorded in the audit history.</li>
+            </ul>
+          </section>
+          <section id="access">
+            <h2>Access and permissions</h2>
+            <p>
+              The server owner has full dashboard access. The owner can give
+              dashboard access to chosen Discord roles and pick which
+              permissions each role receives:
+            </p>
+            <ul>
+              <li>
+                Form builder, Public panels, Community settings, Staff &amp;
+                permissions and Audit history.
+              </li>
+              <li>
+                Applications: review, decide, add notes and assign reviewers.
+              </li>
+            </ul>
+            <p>
+              Discord Administrator permission alone does not grant dashboard
+              access. Access is checked against Discord for each community on
+              every request, so removing a role takes effect immediately.
+            </p>
+          </section>
+          <section id="commands">
+            <h2>Slash commands</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Command</th>
+                  <th scope="col">Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>/help</code></td>
+                  <td>How to use RoApp.</td>
+                </tr>
+                <tr>
+                  <td><code>/setup</code></td>
+                  <td>Register this community (server owner only).</td>
+                </tr>
+                <tr>
+                  <td><code>/dashboard</code></td>
+                  <td>Open the dashboard.</td>
+                </tr>
+                <tr>
+                  <td><code>/apply</code></td>
+                  <td>Choose an application and start it.</td>
+                </tr>
+                <tr>
+                  <td><code>/myapplications</code></td>
+                  <td>View your applications.</td>
+                </tr>
+                <tr>
+                  <td><code>/application</code></td>
+                  <td>View or withdraw one of your applications.</td>
+                </tr>
+                <tr>
+                  <td><code>/review</code></td>
+                  <td>Open the private review workspace (staff).</td>
+                </tr>
+                <tr>
+                  <td><code>/forms</code></td>
+                  <td>List, create, publish or close forms (staff).</td>
+                </tr>
+                <tr>
+                  <td><code>/panel</code></td>
+                  <td>Publish, update or remove application panels (staff).</td>
+                </tr>
+                <tr>
+                  <td><code>/staff</code></td>
+                  <td>
+                    Open staff and permission settings (owner and delegated
+                    staff managers).
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+          <section id="signing-in">
+            <h2>Signing in and sessions</h2>
+            <p>
+              The dashboard uses Sign in with Discord. You stay signed in while
+              you use it and are asked to sign in again after a period of
+              inactivity or when you sign out. Use the same browser for the
+              whole sign-in. If something goes wrong, see
+              <a href="/support/">Support</a>.
+            </p>
+          </section>
+        </article>
+      </div>
+    </main>
+    <footer class="sitefooter">
+      <div class="footer-row">
+        <a class="brand" href="/" aria-label="RoApp home">Ro<span>App</span></a>
+        <p class="copyright">© 2026 RoApp. All rights reserved.</p>
+        <nav class="footer-links" aria-label="Legal and company">
+          <a href="/terms/">Terms of Use</a>
+          <a href="/privacy/">Privacy Policy</a>
+          <a href="/about/">About Us</a>
+        </nav>
+      </div>
+      <p class="independence">
+        RoApp helps Roblox communities manage applications. It is independent of
+        Discord and Roblox.
+      </p>
+    </footer>
+  </body>
+</html>
