@@ -4,10 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#060b17" />
-    <meta
-      name="description"
-      content="Fixes for common RoApp sign-in, community and application problems."
-    />
+    <meta name="description" content="Fixes for common RoApp sign-in, community and application problems." />
     <title>Support — RoApp</title>
     <link rel="stylesheet" href="/css/style.css" />
     <script src="/js/site.js" defer></script>
@@ -15,42 +12,11 @@
   <body>
     <a class="skip" href="#main">Skip to content</a>
     <header class="topbar">
-      <a class="brand" href="/" aria-label="RoApp home"
-        >Ro<span>App</span><small>DASHBOARD</small></a
-      >
+      <a class="brand" href="/" aria-label="RoApp home">Ro<span>App</span><small>DASHBOARD</small></a>
       <nav class="sitenav" aria-label="Main">
-        <a href="/auth/discord" data-nav="dashboard"
-          ><svg
-            class="icon"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" /></svg
-          ><span>Dashboard</span></a
-        >
-        <a href="/docs/"
-          ><svg
-            class="icon"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6" /></svg
-          ><span>Documentation</span></a
-        >
-        <a href="/support/" aria-current="page"
-          ><svg
-            class="icon"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <path
-              d="M4 14v-2a8 8 0 0116 0v2M4 14h3v5H5a1 1 0 01-1-1zM20 14h-3v5h2a1 1 0 001-1zM17 19c0 1.5-2 2-5 2"
-            /></svg
-          ><span>Support</span></a
-        >
+        <a href="/auth/discord" data-nav="dashboard"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg><span>Dashboard</span></a>
+        <a href="/docs/"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6"/></svg><span>Documentation</span></a>
+        <a href="/support/" aria-current="page"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 14v-2a8 8 0 0116 0v2M4 14h3v5H5a1 1 0 01-1-1zM20 14h-3v5h2a1 1 0 001-1zM17 19c0 1.5-2 2-5 2"/></svg><span>Support</span></a>
       </nav>
       <div id="account">
         <a class="button primary" href="/auth/discord">Sign in with Discord</a>
@@ -63,97 +29,52 @@
         <p class="lead">Quick fixes for the most common problems.</p>
       </header>
       <div class="page-body with-toc">
-        <nav class="toc" aria-label="On this page">
-          <p class="eyebrow">ON THIS PAGE</p>
-          <ul>
-            <li><a href="#sign-in">Sign-in problems</a></li>
-            <li><a href="#community-missing">Community missing</a></li>
-            <li><a href="#no-access">No dashboard access</a></li>
-            <li><a href="#applications">Application problems</a></li>
-            <li><a href="#commands-missing">Commands missing</a></li>
-            <li><a href="#more-help">Still need help?</a></li>
-          </ul>
-        </nav>
+      <nav class="toc" aria-label="On this page">
+        <p class="eyebrow">ON THIS PAGE</p>
+        <ul>
+          <li><a href="#sign-in">Sign-in problems</a></li>
+          <li><a href="#community-missing">Community missing</a></li>
+          <li><a href="#no-access">No dashboard access</a></li>
+          <li><a href="#applications">Application problems</a></li>
+          <li><a href="#commands-missing">Commands missing</a></li>
+          <li><a href="#more-help">Still need help?</a></li>
+        </ul>
+      </nav>
         <article class="prose">
           <section id="sign-in">
             <h2>Sign-in problems</h2>
             <h3>“Sign-in could not be verified”</h3>
-            <p>
-              This means the sign-in started in one browser and finished in
-              another, the page was opened twice, or cookies are blocked. Close
-              extra tabs, allow cookies for this site, and start again from
-              <strong>Sign in with Discord</strong> in a single browser. On
-              phones, avoid starting from a link inside another app’s built-in
-              browser.
-            </p>
+            <p>This means the sign-in started in one browser and finished in another, the page was opened twice, or cookies are blocked. Close extra tabs, allow cookies for this site, and start again from <strong>Sign in with Discord</strong> in a single browser. On phones, avoid starting from a link inside another app’s built-in browser.</p>
             <h3>Signed out unexpectedly</h3>
-            <p>
-              Sessions end after a period of inactivity, when you sign out, or
-              when Discord stops accepting your sign-in. Select
-              <strong>Sign in with Discord</strong> again.
-            </p>
+            <p>Sessions end after a period of inactivity, when you sign out, or when Discord stops accepting your sign-in. Select <strong>Sign in with Discord</strong> again.</p>
           </section>
           <section id="community-missing">
             <h2>My community does not appear</h2>
             <ul>
               <li>RoApp must be added to your Discord server.</li>
-              <li>
-                The server owner must register the community once, with
-                <code>/setup</code> or <strong>Set up a community</strong> in
-                the dashboard. Installing the bot alone does not register it.
-              </li>
-              <li>
-                You must be a member of the server with the Discord account you
-                signed in with.
-              </li>
+              <li>The server owner must register the community once, with <code>/setup</code> or <strong>Set up a community</strong> in the dashboard. Installing the bot alone does not register it.</li>
+              <li>You must be a member of the server with the Discord account you signed in with.</li>
             </ul>
           </section>
           <section id="no-access">
             <h2>I can see the community but not the dashboard</h2>
-            <p>
-              Dashboard access is given by the server owner to specific roles.
-              Discord Administrator permission does not grant it. Ask the owner
-              to add one of your roles in
-              <strong>Staff &amp; permissions</strong>.
-            </p>
+            <p>Dashboard access is given by the server owner to specific roles. Discord Administrator permission does not grant it. Ask the owner to add one of your roles in <strong>Staff &amp; permissions</strong>.</p>
           </section>
           <section id="applications">
             <h2>Application problems</h2>
             <ul>
-              <li>
-                <strong>I cannot start or submit:</strong> the form may be
-                closed, you may already have an active application, or you may
-                be inside the form’s cooldown. The message shows which applies.
-              </li>
-              <li>
-                <strong>My answers disappeared:</strong> unfinished answers are
-                kept for 24 hours. After that, or if the form was updated, you
-                start again.
-              </li>
-              <li>
-                <strong>I did not get a message about my application:</strong>
-                private messages depend on your Discord privacy settings.
-                <strong>My applications</strong> always shows the current
-                status.
-              </li>
+              <li><strong>I cannot start or submit:</strong> the form may be closed, you may already have an active application, or you may be inside the form’s cooldown. The message shows which applies.</li>
+              <li><strong>My answers disappeared:</strong> unfinished answers are kept for 24 hours. After that, or if the form was updated, you start again.</li>
+              <li><strong>I did not get a message about my application:</strong> private messages depend on your Discord privacy settings. <strong>My applications</strong> always shows the current status.</li>
             </ul>
           </section>
           <section id="commands-missing">
             <h2>Slash commands do not appear</h2>
-            <p>
-              Commands are registered by whoever operates this RoApp deployment.
-              If none appear in your server, let them know. Reopening Discord
-              can also help after a change.
-            </p>
+            <p>Commands are registered by whoever operates this RoApp deployment. If none appear in your server, let the operator know at the email address below. Reopening Discord can also help after a change.</p>
           </section>
           <section id="more-help">
             <h2>Still need help?</h2>
-            <p>
-              Ask your community’s staff, or the person who runs this RoApp
-              deployment. When you report a problem, include what you were doing
-              and the message you saw; never share passwords, tokens or secrets.
-              Setup instructions are in the <a href="/docs/">documentation</a>.
-            </p>
+            <p>Ask your community’s staff first. For problems with RoApp itself, email <a href="mailto:official.roapp@gmail.com">official.roapp@gmail.com</a>. When you report a problem, include what you were doing and the message you saw; never share passwords, tokens or secrets. Setup instructions are in the <a href="/docs/">documentation</a>.</p>
           </section>
         </article>
       </div>
@@ -168,10 +89,7 @@
           <a href="/about/">About Us</a>
         </nav>
       </div>
-      <p class="independence">
-        RoApp helps Roblox communities manage applications. It is independent of
-        Discord and Roblox.
-      </p>
+      <p class="independence">RoApp helps Roblox communities manage applications. It is independent of Discord and Roblox.</p>
     </footer>
   </body>
 </html>
